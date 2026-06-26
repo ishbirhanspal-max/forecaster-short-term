@@ -94,14 +94,37 @@ if execute_clicked or auto_refresh or not st.session_state.engine_executed:
             df.columns = df.columns.get_level_values(0)
         df.reset_index(inplace=True)
         
-        # --- MULTI-TOOL INDICATOR SUITE (pandas-ta) ---
-        df.ta.ema(length=9, append=True)  
-        df.ta.ema(length=21, append=True) 
-        df.ta.rsi(length=14, append=True) 
-        df.ta.macd(fast=12, slow=26, signal=9, append=True) 
-        df.ta.bbands(length=20, std=2, append=True) 
-        df.ta.stoch(k=14, d=3, smooth_k=3, append=True) 
-        df.ta.atr(length=14, append=True) 
+       # --- NATIVE PANDAS INDICATORS (No pandas-ta required) ---
+        df['EMA_9'] = df['Close'].ewm(span=9, adjust=False).mean()
+        df['EMA_21'] = df['Close'].ewm(span=21, adjust=False).mean()
+        
+        # RSI Calculation
+        delta = df['Close'].diff()
+        gain = delta.clip(lower=0)
+        loss = -delta.clip(upper=0)
+        avg_gain = gain.rolling(14).mean()
+        avg_loss = loss.rolling(14).mean()
+        rs = avg_gain / avg_loss
+        df['RSI_14'] = 100 - (100 / (1 + rs))
+        
+        # MACD Calculation
+        exp1 = df['Close'].ewm(span=12, adjust=False).mean()
+        exp2 = df['Close'].ewm(span=26, adjust=False).mean()
+        df['MACD_12_26_9'] = exp1 - exp2
+        df['MACDs_12_26_9'] = df['MACD_12_26_9'].ewm(span=9, adjust=False).mean()
+        df['MACDh_12_26_9'] = df['MACD_12_26_9'] - df['MACDs_12_26_9']
+        
+        # Bollinger Bands
+        sma_20 = df['Close'].rolling(20).mean()
+        std_20 = df['Close'].rolling(20).std()
+        df['BBU_20_2.0'] = sma_20 + (std_20 * 2)
+        df['BBL_20_2.0'] = sma_20 - (std_20 * 2)
+        
+        # ATR
+        high_low = df['High'] - df['Low']
+        df['ATRr_14'] = high_low.rolling(14).mean()
+        
+        # Remove pandas-ta import at the top of your script
         
         # Clean NaN values safely 
         df.bfill(inplace=True)
