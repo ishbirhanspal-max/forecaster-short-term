@@ -122,7 +122,7 @@ with tab1:
 
     # Render Active Market Data
     if str.session_state.engine_executed and str.session_state.current_market_data is not None:
-     df = str.session_state.current_market_data
+        df = str.session_state.current_market_data
         latest = df.iloc[-1]
         current_p = float(latest['Close'])
         
