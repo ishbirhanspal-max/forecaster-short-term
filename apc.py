@@ -15,6 +15,7 @@ st.set_page_config(page_title="QuantEdge Master Terminal", layout="wide")
 # 1. COMPREHENSIVE SESSION STATE & 150-ASSET MATRIX
 # ==========================================
 if "cash" not in st.session_state: st.session_state.cash = 100000.00
+if "total_deposited" not in st.session_state: st.session_state.total_deposited = 100000.00
 if "portfolio" not in st.session_state: st.session_state.portfolio = {}
 if "statement" not in st.session_state: st.session_state.statement = []
 if "scan_results" not in st.session_state: st.session_state.scan_results = []
@@ -63,7 +64,6 @@ def get_market_status_ist(category):
     if "Crypto" in category: return True, "ONLINE (24/7)"
     ist_now = datetime.now(pytz.timezone('Asia/Kolkata'))
     weekday, hour, minute = ist_now.weekday(), ist_now.hour, ist_now.minute
-    
     if weekday == 5: return False, "OFFLINE (Weekend Halt)"
     if weekday == 6 and (hour < 3 or (hour == 3 and minute < 30)): return False, "OFFLINE (Weekend Halt)"
     return True, "ONLINE"
@@ -110,7 +110,7 @@ hold_limit = TIMEFRAME_CONFIG[timeframe]["hold"]
 hold_str = TIMEFRAME_CONFIG[timeframe]["hold_str"]
 
 # ==========================================
-# 4. UPGRADED MATHEMATICS (CANDLESTICKS RESTORED)
+# 4. UPGRADED MATHEMATICS ENGINE
 # ==========================================
 def clean_and_verify_dataframe(df):
     if isinstance(df.columns, pd.MultiIndex): df.columns = [c[0] for c in df.columns]
@@ -149,11 +149,8 @@ def calculate_analytics_matrix(df):
     df['KC_Lower'] = df['EMA_21'] - (df['ATR'] * 1.5)
     df['Squeeze_Active'] = (df['BB_Upper'] < df['KC_Upper']) & (df['BB_Lower'] > df['KC_Lower'])
     
-    # Candlestick Pattern Math restored
     body = (df['Close'] - df['Open']).abs()
     candle_range = df['High'] - df['Low'] + 1e-9
-    df['Pattern_Doji'] = body <= (candle_range * 0.1)
-    
     lower_shade = np.where(df['Close'] > df['Open'], df['Open'] - df['Low'], df['Close'] - df['Low'])
     upper_shade = np.where(df['Close'] > df['Open'], df['High'] - df['Close'], df['High'] - df['Open'])
     df['Pattern_Hammer'] = (lower_shade >= 2 * body) & (upper_shade <= (candle_range * 0.10)) & (body > 0)
@@ -169,7 +166,6 @@ def calculate_analytics_matrix(df):
     return df
 
 def generate_cyclical_harmonic_forecast(ticker_symbol, df_current, days_lookahead=365):
-    """FFT upgraded with Amplitude Booster to prevent flat lines completely."""
     try:
         macro_raw = yf.download(ticker_symbol, period="2y", interval="1d", progress=False)
         macro_df = clean_and_verify_dataframe(macro_raw) if not macro_raw.empty else df_current.copy()
@@ -189,9 +185,8 @@ def generate_cyclical_harmonic_forecast(ticker_symbol, df_current, days_lookahea
     t_ext = np.arange(0, n + future_steps)
     harmonic_wave = np.zeros(t_ext.size)
     
-    # DYNAMIC AMPLITUDE BOOSTER: Forces the wave to expand visually
     for i in idx[:15]: 
-        amplitude = (np.absolute(fft_vals[i]) / n) * 1.5 # 50% Boost to curve visibility
+        amplitude = (np.absolute(fft_vals[i]) / n) * 1.5 
         phase = np.angle(fft_vals[i])
         harmonic_wave += amplitude * np.cos(2 * np.pi * frequencies[i] * t_ext + phase)
         
@@ -200,7 +195,7 @@ def generate_cyclical_harmonic_forecast(ticker_symbol, df_current, days_lookahea
     
     last_price = float(df_current['Close'].iloc[-1])
     current_atr = float(df_current['ATR'].iloc[-1])
-    max_variance = current_atr * days_lookahead * 0.25 # Wider tracking limits
+    max_variance = current_atr * days_lookahead * 0.25 
     future_predictions = np.clip(future_predictions, last_price - max_variance, last_price + max_variance)
     
     last_date = df_current['Timestamp'].iloc[-1]
@@ -213,18 +208,15 @@ def evaluate_signal_confidence(latest):
     score = 0.0
     factors = []
     
-    # Core Trend
-    if latest.get('EMA_9', 0) > latest.get('EMA_21', 0): score += 1.5; factors.append("📈 Trend: 9 EMA > 21 EMA (Momentum Up)")
-    else: score -= 1.5; factors.append("📉 Trend: 9 EMA < 21 EMA (Momentum Down)")
+    if latest.get('EMA_9', 0) > latest.get('EMA_21', 0): score += 1.5; factors.append("📈 Core Trend: 9 EMA > 21 EMA (Momentum Up)")
+    else: score -= 1.5; factors.append("📉 Core Trend: 9 EMA < 21 EMA (Momentum Down)")
         
-    # Bollinger Mean Reversion
     close_val = latest.get('Close', 1)
     if close_val >= latest.get('BB_Upper', close_val * 1.1):
-        score -= 2.0; factors.append("⚠️ REVERSION: Price overextended at Upper Bollinger Band.")
+        score -= 2.0; factors.append("⚠️ MEAN REVERSION: Price mathematically overextended at Upper Bollinger Band. Short reversion likely.")
     elif close_val <= latest.get('BB_Lower', close_val * 0.9):
-        score += 2.0; factors.append("⚠️ REVERSION: Price exhausted at Lower Bollinger Band.")
+        score += 2.0; factors.append("⚠️ MEAN REVERSION: Price mathematically exhausted at Lower Bollinger Band. Long bounce likely.")
         
-    # Candlestick Formations
     if latest.get('Pattern_Bullish_Engulfing', False): score += 2.0; factors.append("🕯️ CANDLESTICK: Bullish Engulfing Pattern Locked")
     elif latest.get('Pattern_Bearish_Engulfing', False): score -= 2.0; factors.append("🕯️ CANDLESTICK: Bearish Engulfing Pattern Locked")
     elif latest.get('Pattern_Hammer', False): score += 1.0; factors.append("🕯️ CANDLESTICK: Bottoming Hammer Detected")
@@ -274,7 +266,7 @@ for t_id, data in list(st.session_state.portfolio.items()):
     live_p = portfolio_live_prices.get(t_id, data['entry'])
         
     exit_trigger = None
-    if now_ts >= exp_time: exit_trigger = "TIME DECAY LIMIT"
+    if now_ts >= exp_time: exit_trigger = "TIME DECAY LIMIT REACHED"
     elif data['tp'] > 0 and ((data['direction'] == "LONG" and live_p >= data['tp']) or (data['direction'] == "SHORT" and live_p <= data['tp'])): exit_trigger = "TAKE PROFIT MET"
     elif data['sl'] > 0 and ((data['direction'] == "LONG" and live_p <= data['sl']) or (data['direction'] == "SHORT" and live_p >= data['sl'])): exit_trigger = "STOP LOSS MET"
     
@@ -328,7 +320,7 @@ with tab1:
     st.title(f"🔮 Predictive Analysis Matrix: {asset_name}")
     st.markdown(f"Segment: **{asset_cat}** | Market Clock: **{clock_msg}**")
     
-    if not is_open: st.warning("Market is offline (Weekend). Analytics available; execution disabled.")
+    if not is_open: st.warning("Market is offline (Weekend Halt). Analytics are available, but execution is currently disabled.")
         
     if st.session_state.current_market_data is not None and st.session_state.last_analyzed_ticker == ticker:
         df = st.session_state.current_market_data
@@ -336,7 +328,11 @@ with tab1:
         latest = df.iloc[-1]
         
         score, confidence, factors = evaluate_signal_confidence(latest)
-        verdict = "EXECUTE STRONG BUY LONG 🟢" if score >= 1.5 else ("EXECUTE STRONG SELL SHORT 🔴" if score <= -1.5 else "NEUTRAL SPECULATION ⚪")
+        
+        # SINGLE ASSET MASTER VERDICT
+        if score >= 1.5: verdict = "EXECUTE STRONG BUY LONG 🟢"
+        elif score <= -1.5: verdict = "EXECUTE STRONG SELL SHORT 🔴"
+        else: verdict = "NEUTRAL SPECULATION ⚪"
         
         atr = latest.get('ATR', curr_p * 0.01)
         target_tp = curr_p + (atr * 2.5) if score >= 0 else curr_p - (atr * 2.5)
@@ -344,7 +340,7 @@ with tab1:
         sup = latest.get('Support', curr_p)
         res = latest.get('Resistance', curr_p)
         
-        st.markdown("### 🎯 Dynamic Trade Parameters")
+        st.markdown("### 🎯 Dynamic Trade Parameters & Time Limits")
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Optimal Entry (Live)", f"${curr_p:,.4f}")
         c2.metric("Target (Take Profit)", f"${target_tp:,.4f}")
@@ -352,16 +348,16 @@ with tab1:
         c4.metric("Mathematical Confidence", f"{confidence:.2f}%")
         
         c5, c6, c7, c8 = st.columns(4)
-        c5.metric("System Recommendation", verdict)
-        c6.metric("Max Hold Duration", f"{hold_str}")
+        c5.metric("Master Asset Verdict", verdict)
+        c6.metric("Auto-Exit Duration", f"{hold_str}", help="Trade automatically closes after this time if TP/SL are not hit.")
         c7.metric("Dynamic Support", f"${sup:,.4f}")
         c8.metric("Dynamic Resistance", f"${res:,.4f}")
         
-        with st.expander("👁️ Rationale & Candlestick Analysis", expanded=True):
-            st.markdown(f"*Algorithm Verdict reflects underlying mathematics, which often contradicts visual chart illusions.*")
+        with st.expander("👁️ Why is the Algorithm Suggesting This? (Trade Rationale)", expanded=True):
+            st.markdown(f"*Algorithm Verdict reflects underlying mathematics, analyzing price-action patterns and indicators.*")
             for factor in factors: st.markdown(f"- {factor}")
             
-        st.markdown("### 📊 Active Harmonic Forecast Curve (Volatility Amplified)")
+        st.markdown("### 📊 Active Harmonic Forecast Curve (Volatility Injected)")
         f_sel = st.selectbox("Cyclical Lookahead Window", ["1 Month (30 Days)", "3 Months (90 Days)", "6 Months (180 Days)", "1 Year Macro (365 Days)"])
         d_map = {"1 Month (30 Days)": 30, "3 Months (90 Days)": 90, "6 Months (180 Days)": 180, "1 Year Macro (365 Days)": 365}
         
@@ -382,6 +378,7 @@ with tab1:
         st.plotly_chart(fig, use_container_width=True)
         
         st.markdown("### ⚡ Risk-Adjusted Execution Desk")
+        st.info(f"**Capital Rule:** If Target (${target_tp:,.2f}) or Stop Loss (${target_sl:,.2f}) is not hit within **{hold_str}**, the engine will force exit.")
         with st.form("single_execution_form"):
             e1, e2, e3 = st.columns(3)
             risk_pct = e1.slider("Risk Percentage of Account (%)", 1.0, 10.0, 2.0, 0.5)
@@ -391,7 +388,7 @@ with tab1:
             risk_dollars = st.session_state.cash * (risk_pct / 100)
             sl_distance = abs(curr_p - sl_price) if abs(curr_p - sl_price) > 0 else 1
             calculated_units = round(risk_dollars / sl_distance, 4)
-            st.info(f"**Auto-Position Sizer:** To risk {risk_pct}% (${risk_dollars:,.2f}), the algorithm will purchase **{calculated_units} Units**.")
+            st.write(f"**Auto-Position Sizer:** Risking {risk_pct}% (${risk_dollars:,.2f}) equates to purchasing **{calculated_units} Units**.")
             
             b_buy, b_sell = st.columns(2)
             buy_triggered = b_buy.form_submit_button("ROUTE LONG ORDER", use_container_width=True, disabled=not is_open)
@@ -411,7 +408,7 @@ with tab1:
                         "entry": curr_p, "tp": tp_price, "sl": sl_price, "horizon": current_horizon,
                         "direction": direction, "expiration": (datetime.now() + hold_limit).strftime("%Y-%m-%d %H:%M:%S")
                     }
-                    st.toast(f"Executed! Expiration: {hold_str}", icon="✅")
+                    st.toast(f"Executed! Auto-Exit enforced at: {hold_str}", icon="✅")
                     time.sleep(0.4); st.rerun()
 
 with tab2:
@@ -431,6 +428,9 @@ with tab2:
         progress_bar = st.progress(0)
         status_text = st.empty()
         
+        long_count = 0
+        short_count = 0
+        
         for i, (option_text, data_meta) in enumerate(target_assets.items()):
             try:
                 s_tick, s_name, s_cat = data_meta["ticker"], data_meta["name"], data_meta["category"]
@@ -447,6 +447,9 @@ with tab2:
                     
                     if s_confidence >= 60.0:
                         s_dir = "LONG 🟢" if s_score > 0 else "SHORT 🔴"
+                        if s_score > 0: long_count += 1
+                        else: short_count += 1
+                            
                         s_price = float(s_latest['Close'])
                         s_atr = s_latest.get('ATR', s_price * 0.01)
                         s_tp = s_price + (s_atr * 2.2) if s_score > 0 else s_price - (s_atr * 2.2)
@@ -463,8 +466,17 @@ with tab2:
         progress_bar.empty(); status_text.empty()
         st.session_state.scan_results = sorted(scanned_setups, key=lambda x: (x['Category'], -x['Confidence']))
         st.session_state.last_scan_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # SCANNER MASTER VERDICT
+        total_found = long_count + short_count
+        if total_found > 0:
+            if long_count / total_found > 0.6: st.session_state.macro_verdict = f"🟢 MACRO MARKET VERDICT: BULLISH BIAS ({round((long_count/total_found)*100)}% Long Signals)"
+            elif short_count / total_found > 0.6: st.session_state.macro_verdict = f"🔴 MACRO MARKET VERDICT: BEARISH BIAS ({round((short_count/total_found)*100)}% Short Signals)"
+            else: st.session_state.macro_verdict = f"⚪ MACRO MARKET VERDICT: CHOPPY / FRAGMENTED (Mixed Signals Detected)"
+        else: st.session_state.macro_verdict = "⚪ MACRO MARKET VERDICT: NO HIGH-CONFIDENCE SIGNALS"
 
     if st.session_state.scan_results:
+        st.markdown(f"### {st.session_state.get('macro_verdict', '')}")
         st.markdown(f"#### Setups Discovered At: `{st.session_state.last_scan_time}`")
         
         current_display_cat = ""
@@ -474,22 +486,16 @@ with tab2:
                 st.markdown(f"### 🌐 {current_display_cat}")
                 
             with st.container(border=True):
-                c1, c2, c3, c4 = st.columns([2.5, 2.5, 2.5, 2.5])
+                c1, c2, c3, c4, c5 = st.columns([2, 1, 1.5, 2.5, 2])
+                c1.markdown(f"**{trade['Asset']} ({trade['Ticker']})**")
+                c2.markdown(f"**{trade['Direction']}**")
+                c3.metric("Confidence", f"{trade['Confidence']:.1f}%")
                 
-                c1.markdown(f"### {trade['Asset']}\n`{trade['Ticker']}`")
-                c1.metric("Confidence Rating", f"{trade['Confidence']:.1f}%")
-                
-                c2.markdown(f"### {trade['Direction']}")
-                c2.metric("Execution Price", f"${trade['Price']:.4f}")
-                
-                c3.markdown(f"### Targets")
-                c3.markdown(f"**TP:** `${trade['TP']:.4f}`\n**SL:** `${trade['SL']:.4f}`")
-                
-                c4.markdown(f"### Time Limits")
-                c4.markdown(f"**Hold Limit:** `{trade['HoldStr']}`\n**Horizon:** `{trade['Horizon']}`")
+                # Explicity highlighting time decay in the card
+                c4.markdown(f"Spot: **${trade['Price']:.4f}**\n🚨 **Auto-Exit in:** `{trade['HoldStr']}` if no TP/SL")
                 
                 if trade['MarketOpen']:
-                    if st.button("⚡ AUTO-CALCULATE RISK & EXECUTE", key=f"sbtn_{idx}_{trade['Ticker']}", use_container_width=True):
+                    if c5.button("⚡ EXECUTE (2% RISK)", key=f"sbtn_{idx}_{trade['Ticker']}", use_container_width=True):
                         r_dollars = st.session_state.cash * 0.02
                         sl_dist = abs(trade['Price'] - trade['SL']) or 1
                         t_units = round(r_dollars / sl_dist, 4)
@@ -507,33 +513,58 @@ with tab2:
                             }
                             st.toast(f"Routed Auto-Risk Order for {trade['Ticker']}!", icon="🚀")
                             time.sleep(0.3); st.rerun()
-                else: st.markdown("🛑 **Closed (Weekend)**")
+                else: c5.markdown("🛑 **Closed (Weekend)**")
                     
-                with st.expander("👁️ View Technical Reasoning & Candlestick Patterns"):
+                with st.expander("👁️ View Trade Logic & Candlestick Reasoning"):
+                    st.markdown(f"**Target TP:** `${trade['TP']:.4f}` | **Floor SL:** `${trade['SL']:.4f}`")
                     for r in trade['Factors']: st.markdown(f"- {r}")
+    else: st.info("Scanner idle. Awaiting compilation loops.")
 
 with tab3:
     st.title("💼 Master P/L Dashboard & Ledger")
     
     bal_col, add_col = st.columns([2, 1])
-    bal_col.metric("Total Vault Liquid Balance", f"${st.session_state.cash:,.2f}")
+    bal_col.metric("Liquid Cash Balance", f"${st.session_state.cash:,.2f}")
     
     with add_col.expander("💳 Inject Capital / Add Money", expanded=False):
         inject_amt_portfolio = st.number_input("Amount to Inject ($)", min_value=100.0, value=5000.0, step=1000.0)
         if st.button("Confirm Deposit", use_container_width=True):
             st.session_state.cash += inject_amt_portfolio
+            st.session_state.total_deposited += inject_amt_portfolio
             st.rerun()
     
     st.divider()
     
     unrealized_intra, unrealized_inter = 0.0, 0.0
+    total_open_value = 0.0
+    
     for k, v in st.session_state.portfolio.items():
         live_pr = portfolio_live_prices.get(k, v['entry'])
         qty_abs = abs(v['qty'])
+        total_open_value += (qty_abs * live_pr)
+        
         pl = (live_pr - v['entry']) * qty_abs if v['direction'] == "LONG" else (v['entry'] - live_pr) * qty_abs
         if v['horizon'] == "Intraday": unrealized_intra += pl
         else: unrealized_inter += pl
 
+    # Percentage Metrics Formulation
+    total_equity = st.session_state.cash + total_open_value
+    net_pl_dollars = total_equity - st.session_state.total_deposited
+    net_pl_percent = (net_pl_dollars / st.session_state.total_deposited) * 100 if st.session_state.total_deposited > 0 else 0
+
+    master_v_col, met_col1, met_col2 = st.columns([2, 1, 1])
+    
+    # PORTFOLIO MASTER VERDICT
+    if net_pl_percent > 5.0: port_verdict = "🟢 EXCELLENT (Strong Growth Phase)"
+    elif net_pl_percent < -5.0: port_verdict = "🔴 CRITICAL (Drawdown Phase)"
+    else: port_verdict = "⚪ STABLE (Consolidation Phase)"
+    
+    master_v_col.metric("Master Portfolio Health Verdict", port_verdict)
+    met_col1.metric("Total Account Equity", f"${total_equity:,.2f}")
+    met_col2.metric("Net Portfolio Return (%)", f"{net_pl_percent:,.2f}%", delta=f"${net_pl_dollars:,.2f}")
+
+    st.divider()
+    
     p1, p2, p3, p4 = st.columns(4)
     p1.metric("Intraday Unrealized P/L", f"${unrealized_intra:,.2f}", delta=f"{unrealized_intra:,.2f}")
     p2.metric("Intraday Realized P/L", f"${st.session_state.realized_pl['Intraday']:,.2f}", delta=f"{st.session_state.realized_pl['Intraday']:,.2f}")
@@ -555,7 +586,6 @@ with tab3:
                 portfolio_rows.append({
                     "Asset": k, "Direction": v['direction'], "Units": qty_abs, 
                     "Entry": f"${v['entry']:,.4f}", "Live Price": f"${live_pr:,.4f}",
-                    "Take Profit": f"${v['tp']:,.4f}", "Stop Loss": f"${v['sl']:,.4f}", 
                     "Live P/L ($)": f"${unrealized_pl:,.2f}", "Auto-Closes At": v['expiration']
                 })
             st.dataframe(pd.DataFrame(portfolio_rows), use_container_width=True)
@@ -571,6 +601,7 @@ with tab3:
                 else: st.session_state.cash -= (closed_tr['entry'] * qty) - pl_dollars
                 
                 st.session_state.realized_pl[target_string] += pl_dollars
+                
                 st.session_state.statement.append({
                     "Time": datetime.now().strftime("%Y-%m-%d %H:%M"), "Asset": liq_sel, "Type": target_string,
                     "Dir": closed_tr['direction'], "Exit Price": live_exit, "P/L": pl_dollars, "Trigger": "MANUAL FORCE CLOSE"
@@ -598,9 +629,9 @@ with tab4:
         
         tb1, tb2, tb3, tb4 = st.columns(4)
         tb1.metric("Total Executions", total_trades)
-        tb2.metric("Win Rate", f"{win_rate:.1f}%")
-        tb3.metric("Best Trade", f"${best_trade:,.2f}")
-        tb4.metric("Worst Trade", f"${worst_trade:,.2f}")
+        tb2.metric("System Win Rate", f"{win_rate:.1f}%")
+        tb3.metric("Best Single Trade", f"${best_trade:,.2f}")
+        tb4.metric("Worst Single Trade", f"${worst_trade:,.2f}")
         
         st.divider()
         st.dataframe(df_statement.iloc[::-1], use_container_width=True)
