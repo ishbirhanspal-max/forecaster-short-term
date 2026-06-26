@@ -226,8 +226,8 @@ def evaluate_signal_confidence(latest):
     else: score -= 1.0; factors.append("📊 Liquidation below VWAP")
         
     rsi_val = latest.get('RSI_14', 50)
-    if rsi_val < 35: score += 2.0; factors.append(f"⚡ RSI Oversold ({rsi_val:.1f})")
-    elif rsi_val > 65: score -= 2.0; factors.append(f"⚡ RSI Overbought ({rsi_val:.1f})")
+    if rsi_val < 35: score += 2.0; factors.append(f"⚡ RSI Oversold ({rsi_val:.1f}) - Sellers Exhausted")
+    elif rsi_val > 65: score -= 2.0; factors.append(f"⚡ RSI Overbought ({rsi_val:.1f}) - Buyers Exhausted")
         
     if latest.get('MACD', 0) > latest.get('MACD_Signal', 0): score += 1.5; factors.append("🚀 MACD Velocity Accel")
     else: score -= 1.5; factors.append("🩸 MACD Velocity Decay")
@@ -320,7 +320,7 @@ with tab1:
     st.title(f"🔮 Predictive Analysis Matrix: {asset_name}")
     st.markdown(f"Segment: **{asset_cat}** | Market Clock: **{clock_msg}**")
     
-    if not is_open: st.warning("Market is offline (Weekend Halt). Analytics are available, but execution is currently disabled.")
+    if not is_open: st.warning("Market is offline (Weekend). Analytics available; execution disabled.")
         
     if st.session_state.current_market_data is not None and st.session_state.last_analyzed_ticker == ticker:
         df = st.session_state.current_market_data
@@ -491,7 +491,6 @@ with tab2:
                 c2.markdown(f"**{trade['Direction']}**")
                 c3.metric("Confidence", f"{trade['Confidence']:.1f}%")
                 
-                # Explicity highlighting time decay in the card
                 c4.markdown(f"Spot: **${trade['Price']:.4f}**\n🚨 **Auto-Exit in:** `{trade['HoldStr']}` if no TP/SL")
                 
                 if trade['MarketOpen']:
@@ -523,7 +522,7 @@ with tab2:
 with tab3:
     st.title("💼 Master P/L Dashboard & Ledger")
     
-    bal_col, add_col = st.columns([2, 1])
+    bal_col, add_col, reset_col = st.columns([2, 1, 1])
     bal_col.metric("Liquid Cash Balance", f"${st.session_state.cash:,.2f}")
     
     with add_col.expander("💳 Inject Capital / Add Money", expanded=False):
@@ -531,6 +530,17 @@ with tab3:
         if st.button("Confirm Deposit", use_container_width=True):
             st.session_state.cash += inject_amt_portfolio
             st.session_state.total_deposited += inject_amt_portfolio
+            st.rerun()
+            
+    with reset_col.expander("⚠️ Master Reset", expanded=False):
+        st.warning("This will instantly liquidate all positions and wipe historical records.")
+        if st.button("🚨 WIPE PORTFOLIO", use_container_width=True):
+            st.session_state.portfolio = {}
+            st.session_state.statement = []
+            st.session_state.realized_pl = {"Intraday": 0.0, "Interday": 0.0}
+            st.session_state.cash = st.session_state.total_deposited
+            st.toast("Portfolio completely reset.", icon="🔥")
+            time.sleep(0.5)
             st.rerun()
     
     st.divider()
@@ -547,14 +557,12 @@ with tab3:
         if v['horizon'] == "Intraday": unrealized_intra += pl
         else: unrealized_inter += pl
 
-    # Percentage Metrics Formulation
     total_equity = st.session_state.cash + total_open_value
     net_pl_dollars = total_equity - st.session_state.total_deposited
     net_pl_percent = (net_pl_dollars / st.session_state.total_deposited) * 100 if st.session_state.total_deposited > 0 else 0
 
     master_v_col, met_col1, met_col2 = st.columns([2, 1, 1])
     
-    # PORTFOLIO MASTER VERDICT
     if net_pl_percent > 5.0: port_verdict = "🟢 EXCELLENT (Strong Growth Phase)"
     elif net_pl_percent < -5.0: port_verdict = "🔴 CRITICAL (Drawdown Phase)"
     else: port_verdict = "⚪ STABLE (Consolidation Phase)"
