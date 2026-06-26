@@ -246,12 +246,22 @@ with tab2:
         portfolio_data = []
         total_unrealized_pl = 0.0
         
-        # We need a quick data pull to get the live price for all assets held
+   # We need a quick data pull to get the live price for all assets held
         for port_ticker, data in str.session_state.portfolio.items():
+            
+            # --- BACKWARD COMPATIBILITY FIX ---
+            # If 'data' is still a simple number from an old session, upgrade it instantly
+            if not isinstance(data, dict):
+                data = {'qty': float(data), 'avg_entry': 0.0} # 0.0 fallback for old entries
+            # ----------------------------------
+            
             try:
                 live_price = float(yf.Ticker(port_ticker).history(period="1d")['Close'].iloc[-1])
             except:
-                live_price = data['avg_entry'] # Fallback
+                live_price = data.get('avg_entry', 0.0) # Safe fallback
+                
+            qty = data.get('qty', 0.0)
+            avg_entry = data.get('avg_entry', live_price)
                 
             qty = data['qty']
             avg_entry = data['avg_entry']
