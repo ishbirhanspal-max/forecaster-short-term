@@ -1,16 +1,14 @@
-import numpy as np
+import streamlit as st
+import yfinance as yf
 import pandas as pd
+import pandas_ta as ta
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from datetime import datetime
+import time
 
-# =========================================================================
-# 🛠️ CRITICAL LEGACY PATCHES (MUST RUN BEFORE IMPORTING PANDAS_TA)
-# =========================================================================
-# 1. Fixes NumPy 2.0+ removal of np.NaN
-if not hasattr(np, "NaN"):
-    np.NaN = np.nan
-
-# 2. Fixes Pandas 2.0+ removal of Series.append() by routing to internal fallback
-if not hasattr(pd.Series, "append"):
-    pd.Series.append = pd.Series._append
+# Page config
+st.set_page_config(page_title="QuantEdge Predictive Engine", layout="wide")
 
 # =========================================================================
 # NOW STANDARD IMPORTS CAN SAFELY EXECUTE
