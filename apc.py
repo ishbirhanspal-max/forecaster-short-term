@@ -13,7 +13,7 @@ str.set_page_config(page_title="QuantEdge Live Brokerage", layout="wide")
 # 1. INITIALIZE ADVANCED PERSISTENT MEMORY
 # ==========================================
 if "cash" not in str.session_state:
-    str.session_state.cash = 10000.00  
+    str.session_state.cash = 1000000.00  
 if "portfolio" not in str.session_state:
     # Portfolio now tracks both quantity AND average entry price for P&L math
     str.session_state.portfolio = {}   
