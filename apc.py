@@ -48,7 +48,7 @@ def get_market_status_ist(category):
     return True, "ONLINE"
 
 # ==========================================
-# 3. SIDEBAR NAVIGATION
+# 3. SIDEBAR NAVIGATION & LIVE CONTROLS
 # ==========================================
 st.sidebar.header("🕹️ Quantitative Controls")
 
@@ -66,6 +66,11 @@ timeframe = st.sidebar.selectbox(
     "Structural Strategy Classification", 
     ["Intraday (1 Min Frame)", "Intraday (15 Min Frame)", "Interday (1 Day Frame)", "Interday (1 Week Frame)"]
 )
+
+# LIVE SYNC MASTER BUTTON
+st.sidebar.divider()
+find_now_pressed = st.sidebar.button("⚡ FIND NOW (Live Sync)", type="primary", use_container_width=True)
+auto_refresh = st.sidebar.toggle("Enable Background Auto-Sync", value=False)
 
 TIMEFRAME_CONFIG = {
     "Intraday (1 Min Frame)":  {"int": "1m",  "period": "5d",  "horizon": "Intraday", "hold": timedelta(hours=2)},
@@ -103,7 +108,7 @@ def calculate_analytics_matrix(df):
     df['MACD'] = ema12 - ema26
     df['MACD_Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
     
-    # Volatility Squeeze Math (Bollinger vs Keltner)
+    # Volatility Squeeze Math Restored (Bollinger vs Keltner)
     sma20 = df['Close'].rolling(20).mean()
     std20 = df['Close'].rolling(20).std()
     df['BB_Upper'] = sma20 + (std20 * 2.0)
@@ -112,7 +117,6 @@ def calculate_analytics_matrix(df):
     hl, hc, lc = df['High'] - df['Low'], (df['High'] - df['Close'].shift(1)).abs(), (df['Low'] - df['Close'].shift(1)).abs()
     df['ATR'] = pd.concat([hl, hc, lc], axis=1).max(axis=1).rolling(14).mean()
     
-    # Keltner Channels for Squeeze detection
     df['KC_Upper'] = df['EMA_21'] + (df['ATR'] * 1.5)
     df['KC_Lower'] = df['EMA_21'] - (df['ATR'] * 1.5)
     df['Squeeze_Active'] = (df['BB_Upper'] < df['KC_Upper']) & (df['BB_Lower'] > df['KC_Lower'])
@@ -121,7 +125,6 @@ def calculate_analytics_matrix(df):
     return df
 
 def generate_cyclical_harmonic_forecast(ticker_symbol, df_current, days_lookahead=365):
-    """Upgraded FFT with ATR Damping to prevent unrealistic price spikes."""
     try:
         macro_raw = yf.download(ticker_symbol, period="2y", interval="1d", progress=False)
         macro_df = clean_and_verify_dataframe(macro_raw) if not macro_raw.empty else df_current.copy()
@@ -141,7 +144,7 @@ def generate_cyclical_harmonic_forecast(ticker_symbol, df_current, days_lookahea
     t_ext = np.arange(0, n + future_steps)
     harmonic_wave = np.zeros(t_ext.size)
     
-    for i in idx[:12]: # Reduced to top 12 harmonics for smoother curves
+    for i in idx[:12]:
         amplitude = np.absolute(fft_vals[i]) / n
         phase = np.angle(fft_vals[i])
         harmonic_wave += amplitude * np.cos(2 * np.pi * frequencies[i] * t_ext + phase)
@@ -149,10 +152,9 @@ def generate_cyclical_harmonic_forecast(ticker_symbol, df_current, days_lookahea
     full_prediction = harmonic_wave + (slope * t_ext + intercept)
     future_predictions = full_prediction[n:]
     
-    # ATR Dampener: Restricts forecast drift to realistic statistical limits
     last_price = float(df_current['Close'].iloc[-1])
     current_atr = float(df_current['ATR'].iloc[-1])
-    max_variance = current_atr * days_lookahead * 0.15 # Dynamic cap based on actual volatility
+    max_variance = current_atr * days_lookahead * 0.15 
     
     future_predictions = np.clip(future_predictions, last_price - max_variance, last_price + max_variance)
     
@@ -164,28 +166,31 @@ def generate_cyclical_harmonic_forecast(ticker_symbol, df_current, days_lookahea
     return future_dates, future_predictions
 
 def evaluate_signal_confidence(latest):
-    """Upgraded strict scoring logic."""
     score = 0.0
     factors = []
     
-    if latest['EMA_9'] > latest['EMA_21']: score += 2.0; factors.append("📈 Bullish EMA Structural Crossover")
+    if latest.get('EMA_9', 0) > latest.get('EMA_21', 0): score += 2.0; factors.append("📈 Bullish EMA Structural Crossover")
     else: score -= 2.0; factors.append("📉 Bearish EMA Structural Crossover")
         
-    # VWAP Penalty logic
-    dist_to_vwap = abs(latest['Close'] - latest['VWAP']) / latest['VWAP']
+    vwap_val = latest.get('VWAP', latest.get('Close', 1))
+    close_val = latest.get('Close', 1)
+    dist_to_vwap = abs(close_val - vwap_val) / (vwap_val + 1e-9)
+    
     if dist_to_vwap > 0.05: score -= 1.0; factors.append("⚠️ Overextended from VWAP Anchor (Reversion Risk)")
-    elif latest['Close'] > latest['VWAP']: score += 1.5; factors.append("📊 Volume Profile Accumulation (Above VWAP)")
+    elif close_val > vwap_val: score += 1.5; factors.append("📊 Volume Profile Accumulation (Above VWAP)")
     else: score -= 1.5; factors.append("📊 Volume Profile Liquidation (Below VWAP)")
         
-    if latest['RSI_14'] < 35: score += 2.5; factors.append("⚡ Highly Oversold Multi-Hour Exhaustion")
-    elif latest['RSI_14'] > 65: score -= 2.5; factors.append("⚡ Highly Overbought Multi-Hour Exhaustion")
+    rsi_val = latest.get('RSI_14', 50)
+    if rsi_val < 35: score += 2.5; factors.append("⚡ Highly Oversold Multi-Hour Exhaustion")
+    elif rsi_val > 65: score -= 2.5; factors.append("⚡ Highly Overbought Multi-Hour Exhaustion")
         
-    if latest['MACD'] > latest['MACD_Signal']: score += 1.5; factors.append("🚀 Positive MACD Velocity Accentuation")
+    if latest.get('MACD', 0) > latest.get('MACD_Signal', 0): score += 1.5; factors.append("🚀 Positive MACD Velocity Accentuation")
     else: score -= 1.5; factors.append("🩸 Negative MACD Velocity Accentuation")
         
-    if latest['Squeeze_Active']:
+    # Defensive get() wrapper prevents KeyErrors permanently
+    if latest.get('Squeeze_Active', False):
         factors.append("🔥 VOLATILITY SQUEEZE DETECTED: Explosive Breakout Imminent")
-        score *= 1.2 # Amplify score if coiling
+        score *= 1.2 
 
     confidence = min((abs(score) / 7.5) * 100, 99.8)
     if confidence < 50.0: confidence = 50.0 + (confidence / 5)
@@ -231,14 +236,21 @@ chosen_int = TIMEFRAME_CONFIG[timeframe]["int"]
 chosen_per = TIMEFRAME_CONFIG[timeframe]["period"]
 is_open, clock_msg = get_market_status_ist(asset_cat)
 
-if st.session_state.get("current_market_data") is None or st.session_state.get("last_analyzed_ticker") != ticker:
-    with st.spinner("Synchronizing algorithmic asset parameters..."):
+if auto_refresh:
+    time.sleep(10)
+    st.rerun()
+
+# Execute sync if Find Now is pressed, or if state is empty, or if asset changed
+if find_now_pressed or st.session_state.get("current_market_data") is None or st.session_state.get("last_analyzed_ticker") != ticker:
+    with st.spinner("Executing Live Market Sync..."):
         raw_data = yf.download(ticker, period=chosen_per, interval=chosen_int, progress=False)
         if not raw_data.empty:
             df_clean = clean_and_verify_dataframe(raw_data)
             st.session_state.current_market_data = calculate_analytics_matrix(df_clean)
             st.session_state.live_price = float(st.session_state.current_market_data['Close'].iloc[-1])
             st.session_state.last_analyzed_ticker = ticker
+            if find_now_pressed:
+                st.toast("Live Matrix Synchronization Complete.", icon="⚡")
 
 # ==========================================
 # 7. USER INTERFACE TAB CONSOLE
@@ -268,7 +280,7 @@ with tab1:
         score, confidence, factors = evaluate_signal_confidence(latest)
         verdict = "EXECUTE STRONG BUY LONG 🟢" if score >= 1.5 else ("EXECUTE STRONG SELL SHORT 🔴" if score <= -1.5 else "NEUTRAL SPECULATION ⚪")
         
-        atr = latest['ATR']
+        atr = latest.get('ATR', 0)
         target_tp = curr_p + (atr * 2.5) if score >= 0 else curr_p - (atr * 2.5)
         target_sl = curr_p - (atr * 1.5) if score >= 0 else curr_p + (atr * 1.5)
         
@@ -362,7 +374,7 @@ with tab2:
                         if s_confidence >= 60.0:
                             s_dir = "LONG 🟢" if s_score > 0 else "SHORT 🔴"
                             s_price = float(s_latest['Close'])
-                            s_atr = s_latest['ATR']
+                            s_atr = s_latest.get('ATR', 0)
                             s_tp = s_price + (s_atr * 2.2) if s_score > 0 else s_price - (s_atr * 2.2)
                             s_sl = s_price - (s_atr * 1.5) if s_score > 0 else s_price + (s_atr * 1.5)
                             
@@ -416,7 +428,6 @@ with tab2:
 with tab3:
     st.title("💼 Institutional Portfolio Ledger")
     
-    # Capital Injection Vault embedded seamlessly in the Portfolio tab
     bal_col, add_col = st.columns([2, 1])
     bal_col.metric("Total Vault Liquid Balance", f"${st.session_state.cash:,.2f}")
     
@@ -460,7 +471,7 @@ with tab4:
     st.title("📖 Quantitative Operations Blueprint")
     st.markdown("""
     ### ⚙️ Engine Upgrades & Mathematical Logic
-    1. **Harmonic Damping (Accuracy Fix):** Pure FFT predictions can swing wildly based on a single historical spike. This engine applies an **ATR Dampener**, which strictly bounds the prediction curve within the asset's true statistical historical variance. This ensures smooth, realistic pricing logic.
-    2. **Squeeze Detection (The Coiled Spring):** The math engine measures Bollinger Bands against Keltner Channels. When bands pinch tightly (volatility squeeze), it detects an imminent market breakout, boosting the confidence level. 
-    3. **VWAP Penalties:** The confidence engine will actively deduct points if the algorithm triggers a buy/sell signal that is too far decoupled from the Volume Weighted Average Price (VWAP), preventing you from getting trapped in "fake-out" moves.
+    1. **Live Matrix Sync:** The new `FIND NOW` button acts as a primary hard override, pulling the most recent live data instantly from global exchanges while skipping local cached data frames. 
+    2. **Harmonic Damping (Accuracy Fix):** Pure FFT predictions can swing wildly based on a single historical spike. This engine applies an **ATR Dampener**, which strictly bounds the prediction curve within the asset's true statistical historical variance. This ensures smooth, realistic pricing logic.
+    3. **Squeeze Detection (The Coiled Spring):** The math engine measures Bollinger Bands against Keltner Channels. When bands pinch tightly (volatility squeeze), it detects an imminent market breakout, boosting the confidence level. 
     """)
