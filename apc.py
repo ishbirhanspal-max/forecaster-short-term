@@ -15,7 +15,6 @@ str.set_page_config(page_title="QuantEdge Live Brokerage", layout="wide")
 if "cash" not in str.session_state:
     str.session_state.cash = 10000.00  
 if "portfolio" not in str.session_state:
-    # Portfolio now tracks both quantity AND average entry price for P&L math
     str.session_state.portfolio = {}   
 if "statement" not in str.session_state:
     str.session_state.statement = []   
@@ -25,6 +24,8 @@ if "current_market_data" not in str.session_state:
     str.session_state.current_market_data = None
 if "last_analyzed_ticker" not in str.session_state:
     str.session_state.last_analyzed_ticker = None
+if "live_price" not in str.session_state:
+    str.session_state.live_price = 0.0
 
 ASSET_CLASSES = {
     "Equities (Stocks)": {"Apple (AAPL)": "AAPL", "Tesla (TSLA)": "TSLA", "Nvidia (NVDA)": "NVDA", "S&P 500 ETF (SPY)": "SPY"},
@@ -50,52 +51,41 @@ chart_style = str.sidebar.radio("Visual Chart Style", ["Candlestick", "Line Char
 
 str.sidebar.divider()
 str.sidebar.header("⚡ Live Auto-Pilot")
-auto_refresh = str.sidebar.toggle("Enable Auto-Refresh Loop", value=False)
-refresh_rate = str.sidebar.slider("Refresh Interval (Seconds)", min_value=10, max_value=60, value=15, help="Keep above 10s to avoid API bans.")
+auto_refresh = str.sidebar.toggle("Enable Fast-Sync Loop", value=False)
+# Reduced slider minimum to allow faster tick updates since we optimized the data pull
+refresh_rate = str.sidebar.slider("Refresh Interval (Seconds)", min_value=3, max_value=60, value=5)
 
 interval_mapping = {
-    "1 Minute": {"int": "1m", "period": "2d", "secs": 60},
-    "5 Minutes": {"int": "5m", "period": "5d", "secs": 300},
-    "15 Minutes": {"int": "15m", "period": "5d", "secs": 900},
-    "1 Hour": {"int": "1h", "period": "730d", "secs": 3600}
+    "1 Minute": {"int": "1m", "period": "1d"}, # Minimized period to prevent lag
+    "5 Minutes": {"int": "5m", "period": "5d"},
+    "15 Minutes": {"int": "15m", "period": "5d"},
+    "1 Hour": {"int": "1h", "period": "60d"}
 }
-
-# Timer Math
-now = datetime.now()
-secs_in_interval = interval_mapping[timeframe]["secs"]
-seconds_passed = (now.minute * 60 + now.second) % secs_in_interval
-seconds_remaining = secs_in_interval - seconds_passed
 
 # ==========================================
 # 3. TAB NAVIGATION
 # ==========================================
-tab1, tab2 = str.tabs(["⚡ Live Trading Terminal", "💼 Portfolio & Live P&L"])
+tab1, tab2 = str.tabs(["⚡ Fast-Execution Terminal", "💼 Portfolio & Risk Ledger"])
 
 with tab1:
-    str.title("⚡ QuantEdge Live Trading Terminal")
+    str.title("⚡ QuantEdge Fast-Execution Terminal")
     
-    # Restored Live Timer Banner
-    t_col1, t_col2, t_col3 = str.columns(3)
-    t_col1.metric("Active Market", f"{asset_name}")
-    t_col2.metric("Candle Horizon", timeframe)
-    t_col3.metric("⏳ Next Candle Cuts In", f"{seconds_remaining} seconds")
-    str.divider()
-    
-    # Execution Logic (Manual or Auto-Pilot)
-    execute_clicked = str.button("🔄 Execute Market Scan", use_container_width=True)
+    # Check if manual execution or auto-loop is triggered
+    execute_clicked = str.button("🔄 Sync Market Data", use_container_width=True)
     
     if execute_clicked or auto_refresh:
         chosen_int = interval_mapping[timeframe]["int"]
         chosen_per = interval_mapping[timeframe]["period"]
         
+        # Fast Data Pull
         df = yf.download(ticker, period=chosen_per, interval=chosen_int, progress=False)
         
-        if df is not None and len(df) > 50:
+        if df is not None and len(df) > 20:
             if isinstance(df.columns, pd.MultiIndex):
                 df.columns = df.columns.get_level_values(0)
             df.reset_index(inplace=True)
             
-            # Standard Math
+            # Lightweight Math Processing
             df['SMA_20'] = df['Close'].rolling(window=20).mean()
             df['SMA_50'] = df['Close'].rolling(window=50).mean()
             delta = df['Close'].diff()
@@ -103,125 +93,111 @@ with tab1:
             loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
             rs = gain / loss
             df['RSI'] = 100 - (100 / (1 + rs))
-            exp1 = df['Close'].ewm(span=12, adjust=False).mean()
-            exp2 = df['Close'].ewm(span=26, adjust=False).mean()
-            df['MACD'] = exp1 - exp2
-            df['Signal_Line'] = df['MACD'].ewm(span=9, adjust=False).mean()
             
-            # ADVANCED: Support, Resistance, and ATR (Volatility)
-            df['Support'] = df['Low'].rolling(window=20).min()
-            df['Resistance'] = df['High'].rolling(window=20).max()
-            df['ATR'] = (df['High'] - df['Low']).rolling(window=14).mean()
-            
+            latest_price = float(df['Close'].iloc[-1])
+            str.session_state.live_price = latest_price
             str.session_state.current_market_data = df
             str.session_state.engine_executed = True
             str.session_state.last_analyzed_ticker = ticker
-        else:
-            str.error("Market data unavailable. API limit reached or market closed.")
-            str.session_state.engine_executed = False
+            
+            # --- AUTO-LIQUIDATION ENGINE (TP/SL TRIGGER) ---
+            if ticker in str.session_state.portfolio:
+                pos = str.session_state.portfolio[ticker]
+                trigger = None
+                if pos['tp'] > 0 and latest_price >= pos['tp']:
+                    trigger = "TAKE PROFIT"
+                elif pos['sl'] > 0 and latest_price <= pos['sl']:
+                    trigger = "STOP LOSS"
+                    
+                if trigger:
+                    revenue = pos['qty'] * latest_price
+                    str.session_state.cash += revenue
+                    str.session_state.statement.append({
+                        "Time": datetime.now().strftime("%H:%M:%S"),
+                        "Asset": ticker,
+                        "Action": f"AUTO-SELL ({trigger})",
+                        "Qty": pos['qty'],
+                        "Price": latest_price,
+                        "Total Value": revenue
+                    })
+                    del str.session_state.portfolio[ticker]
+                    str.toast(f"{trigger} HIT! Auto-Sold {ticker} @ ${latest_price:.2f}", icon="🔥")
 
-    # Render Active Market Data
+    # Render Active Market Data & Fast Execution UI
     if str.session_state.engine_executed and str.session_state.current_market_data is not None:
         df = str.session_state.current_market_data
-        latest = df.iloc[-1]
-        current_p = float(latest['Close'])
+        current_p = str.session_state.live_price
         
-        # Safe-read implementation to prevent KeyError on hot-reloads or data drops
-        support_p = float(latest.get('Support', current_p))
-        resistance_p = float(latest.get('Resistance', current_p))
-        atr_p = float(latest.get('ATR', 0.0))
-        
-        # Verdict Logic
-        buy_votes, sell_votes = 0, 0
-        
-        if float(latest['SMA_20']) > float(latest['SMA_50']): buy_votes += 1
-        else: sell_votes += 1
-            
-        rsi_v = float(latest['RSI']) if not pd.isna(latest['RSI']) else 50.0
-        if rsi_v < 40: buy_votes += 1  # Adjusted for earlier signals
-        elif rsi_v > 60: sell_votes += 1
-            
-        if float(latest['MACD']) > float(latest['Signal_Line']): buy_votes += 1
-        else: sell_votes += 1
-
-        if buy_votes > sell_votes:
-            signal_output = "BUY"
-            conf = (buy_votes / 3) * 100
-            # Risk Math for Longs
-            stop_loss = current_p - (atr_p * 1.5)
-            take_profit = current_p + (atr_p * 2.5)
-        elif sell_votes > buy_votes:
-            signal_output = "SELL"
-            conf = (sell_votes / 3) * 100
-            # Risk Math for Shorts/Sells
-            stop_loss = current_p + (atr_p * 1.5)
-            take_profit = current_p - (atr_p * 2.5)
-        else:
-            signal_output = "NEUTRAL"
-            conf = 50.0
-            stop_loss = current_p - atr_p
-            take_profit = current_p + atr_p
-
         # Visual Display
-        str.subheader("🎯 Live Execution Matrix")
-        m_col1, m_col2, m_col3, m_col4 = str.columns(4)
-        m_col1.metric("Current Price", f"${current_p:,.4f}")
-        m_col2.metric("System Signal", signal_output)
-        m_col3.metric("Confidence", f"{conf:.1f}%")
-        m_col4.metric("Volatility (ATR)", f"${atr_p:,.4f}")
+        str.subheader(f"Live Price: ${current_p:,.4f}")
         
-        str.markdown("### 🛡️ Trade Setup & Risk Levels")
-        r_col1, r_col2, r_col3, r_col4 = str.columns(4)
-        r_col1.info(f"**Optimal Entry:**\n${current_p:,.4f}")
-        r_col2.success(f"**Target (Exit):**\n${take_profit:,.4f}")
-        r_col3.error(f"**Stop-Loss:**\n${stop_loss:,.4f}")
-        r_col4.warning(f"**S/R Bounds:**\nS: ${support_p:,.2f} | R: ${resistance_p:,.2f}")
-
-        # Dynamic Charts
+        # Fast Rendering Chart
         fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
         time_column = df['Datetime'] if 'Datetime' in df else df['Date']
         
         if chart_style == "Candlestick":
             fig.add_trace(go.Candlestick(x=time_column, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="Price"), row=1, col=1)
         else:
-            fig.add_trace(go.Scatter(x=time_column, y=df['Close'], name="Price (Line)", line=dict(color='blue', width=2)), row=1, col=1)
+            fig.add_trace(go.Scatter(x=time_column, y=df['Close'], name="Price", line=dict(color='cyan', width=2)), row=1, col=1)
             
-        # Add Support/Resistance lines
-        fig.add_trace(go.Scatter(x=time_column, y=df['Resistance'], name="Resistance", line=dict(color='red', width=1, dash='dot')), row=1, col=1)
-        fig.add_trace(go.Scatter(x=time_column, y=df['Support'], name="Support", line=dict(color='green', width=1, dash='dot')), row=1, col=1)
-        
+        fig.add_trace(go.Scatter(x=time_column, y=df['SMA_20'], name="20 SMA", line=dict(color='orange', width=1)), row=1, col=1)
         fig.add_trace(go.Scatter(x=time_column, y=df['RSI'], name="RSI (14)", line=dict(color='gray')), row=2, col=1)
-        fig.update_layout(xaxis_rangeslider_visible=False, height=550, template="plotly_dark", margin=dict(t=10, b=10))
+        
+        # Plot open position targets on the chart if they exist
+        active_ticker = str.session_state.last_analyzed_ticker
+        if active_ticker in str.session_state.portfolio:
+            pos = str.session_state.portfolio[active_ticker]
+            if pos['tp'] > 0:
+                fig.add_hline(y=pos['tp'], line_dash="dash", line_color="green", annotation_text="Take Profit", row=1, col=1)
+            if pos['sl'] > 0:
+                fig.add_hline(y=pos['sl'], line_dash="dash", line_color="red", annotation_text="Stop Loss", row=1, col=1)
+
+        fig.update_layout(xaxis_rangeslider_visible=False, height=450, template="plotly_dark", margin=dict(t=10, b=10))
         str.plotly_chart(fig, use_container_width=True)
 
-        # Paper Trading
+        # ==========================================
+        # ZERO-LAG PAPER TRADING EXECUTION
+        # ==========================================
         str.divider()
-        str.subheader("💼 Terminal Execution")
+        str.markdown("### 💼 Manual Order Entry (Zero-Lag)")
         str.write(f"**Purchasing Power:** `${str.session_state.cash:,.2f}`")
         
-        t_qty = str.number_input("Order Quantity", min_value=0.01, max_value=1000.0, value=1.00, step=0.1)
-        active_ticker = str.session_state.last_analyzed_ticker
+        # Use a form to prevent instant reloads while typing numbers
+        with str.form("trade_execution_form"):
+            t_col1, t_col2, t_col3 = str.columns(3)
+            t_qty = t_col1.number_input("Quantity", min_value=0.01, max_value=1000.0, value=1.00, step=0.1)
+            
+            # Dynamic default targets based on current price
+            tp_price = t_col2.number_input("Take Profit Target ($)", min_value=0.0, value=float(current_p * 1.05), step=0.01, help="Set to 0 to disable.")
+            sl_price = t_col3.number_input("Stop Loss Target ($)", min_value=0.0, value=float(current_p * 0.95), step=0.01, help="Set to 0 to disable.")
+            
+            btn_col1, btn_col2 = str.columns(2)
+            buy_intent = btn_col1.form_submit_button("🟢 Buy Long", use_container_width=True)
+            sell_intent = btn_col2.form_submit_button("🔴 Close / Sell Position", use_container_width=True)
 
-        btn_col1, btn_col2 = str.columns(2)
-        if btn_col1.button("🟢 Execute Market BUY", use_container_width=True):
+        # Process logic outside the form block instantly
+        if buy_intent:
             cost = t_qty * current_p
             if str.session_state.cash >= cost:
                 str.session_state.cash -= cost
                 
-                # Portfolio P&L Math updates
+                # Update portfolio with Qty, Avg Entry, TP, and SL
                 if active_ticker in str.session_state.portfolio:
                     old_qty = str.session_state.portfolio[active_ticker]['qty']
                     old_avg = str.session_state.portfolio[active_ticker]['avg_entry']
                     new_qty = old_qty + t_qty
                     new_avg = ((old_qty * old_avg) + (t_qty * current_p)) / new_qty
-                    str.session_state.portfolio[active_ticker] = {'qty': new_qty, 'avg_entry': new_avg}
+                    str.session_state.portfolio[active_ticker] = {'qty': new_qty, 'avg_entry': new_avg, 'tp': tp_price, 'sl': sl_price}
                 else:
-                    str.session_state.portfolio[active_ticker] = {'qty': t_qty, 'avg_entry': current_p}
+                    str.session_state.portfolio[active_ticker] = {'qty': t_qty, 'avg_entry': current_p, 'tp': tp_price, 'sl': sl_price}
                 
-                str.session_state.statement.append({"Time": datetime.now().strftime("%H:%M:%S"), "Asset": active_ticker, "Action": "BUY", "Qty": t_qty, "Price": current_p})
-                str.success(f"Filled BUY: {t_qty} {active_ticker} @ ${current_p:.2f}")
+                str.session_state.statement.append({"Time": datetime.now().strftime("%H:%M:%S"), "Asset": active_ticker, "Action": "BUY", "Qty": t_qty, "Price": current_p, "Total Value": cost})
+                str.success(f"Executed BUY: {t_qty} {active_ticker} @ ${current_p:.2f}. targets Set.")
+                str.rerun() # Force instant UI update
+            else:
+                str.error("Insufficient Capital.")
 
-        if btn_col2.button("🔴 Execute Market SELL", use_container_width=True):
+        if sell_intent:
             if active_ticker in str.session_state.portfolio and str.session_state.portfolio[active_ticker]['qty'] >= t_qty:
                 revenue = t_qty * current_p
                 str.session_state.cash += revenue
@@ -230,65 +206,53 @@ with tab1:
                 if str.session_state.portfolio[active_ticker]['qty'] <= 0:
                     del str.session_state.portfolio[active_ticker]
                     
-                str.session_state.statement.append({"Time": datetime.now().strftime("%H:%M:%S"), "Asset": active_ticker, "Action": "SELL", "Qty": t_qty, "Price": current_p})
-                str.success(f"Filled SELL: {t_qty} {active_ticker} @ ${current_p:.2f}")
+                str.session_state.statement.append({"Time": datetime.now().strftime("%H:%M:%S"), "Asset": active_ticker, "Action": "MANUAL SELL", "Qty": t_qty, "Price": current_p, "Total Value": revenue})
+                str.success(f"Executed SELL: {t_qty} {active_ticker} @ ${current_p:.2f}")
+                str.rerun()
+            else:
+                str.error("You do not own enough units to sell.")
 
 # ==========================================
-# PORTFOLIO & LIVE P&L TAB
+# TAB 2: PORTFOLIO & RISK LEDGER
 # ==========================================
 with tab2:
-    str.header("📈 Live Portfolio Ledger")
+    str.header("📈 Active Risk Ledger")
     str.metric("Liquid Cash Balance", f"${str.session_state.cash:,.2f}")
     
     if str.session_state.portfolio:
-        str.subheader("Open Positions & Live P&L")
-        
+        str.subheader("Open Positions & Active Targets")
         portfolio_data = []
-        total_unrealized_pl = 0.0
         
-   # We need a quick data pull to get the live price for all assets held
         for port_ticker, data in str.session_state.portfolio.items():
-            
-            # --- BACKWARD COMPATIBILITY FIX ---
-            # If 'data' is still a simple number from an old session, upgrade it instantly
             if not isinstance(data, dict):
-                data = {'qty': float(data), 'avg_entry': 0.0} # 0.0 fallback for old entries
-            # ----------------------------------
-            
-            try:
-                live_price = float(yf.Ticker(port_ticker).history(period="1d")['Close'].iloc[-1])
-            except:
-                live_price = data.get('avg_entry', 0.0) # Safe fallback
+                data = {'qty': float(data), 'avg_entry': 0.0, 'tp': 0.0, 'sl': 0.0}
                 
             qty = data.get('qty', 0.0)
-            avg_entry = data.get('avg_entry', live_price)
-                
-            qty = data['qty']
-            avg_entry = data['avg_entry']
-            current_val = qty * live_price
-            invested_val = qty * avg_entry
-            pl_dollars = current_val - invested_val
-            pl_percent = (pl_dollars / invested_val) * 100
+            avg_entry = data.get('avg_entry', 0.0)
+            tp = data.get('tp', 0.0)
+            sl = data.get('sl', 0.0)
             
-            total_unrealized_pl += pl_dollars
+            # Use cached live price if viewing the active asset, otherwise use fallback
+            live_price = str.session_state.live_price if port_ticker == str.session_state.last_analyzed_ticker else avg_entry
+            
+            pl_dollars = (live_price - avg_entry) * qty
             
             portfolio_data.append({
                 "Asset": port_ticker,
-                "Units Held": qty,
-                "Avg Entry Price": f"${avg_entry:,.2f}",
-                "Live Market Price": f"${live_price:,.2f}",
-                "Open P&L ($)": f"${pl_dollars:,.2f}",
-                "Open P&L (%)": f"{pl_percent:,.2f}%"
+                "Units": qty,
+                "Entry Price": f"${avg_entry:,.2f}",
+                "Take Profit": f"${tp:,.2f}" if tp > 0 else "None",
+                "Stop Loss": f"${sl:,.2f}" if sl > 0 else "None",
+                "Live P&L": f"${pl_dollars:,.2f}"
             })
             
-        str.metric("Total Unrealized P&L", f"${total_unrealized_pl:,.2f}", delta=f"${total_unrealized_pl:,.2f}")
         str.dataframe(pd.DataFrame(portfolio_data), use_container_width=True)
     else:
-        str.info("Your portfolio is currently empty.")
+        str.info("Your portfolio is completely flat. No open positions.")
         
     if str.session_state.statement:
-        str.subheader("Trade History Ledger")
-        str.dataframe(pd.DataFrame(str.session_state.statement).iloc[::-1], use_container_width=True) # Reverses order to show newest first
+        str.subheader("Execution History")
+        str.dataframe(pd.DataFrame(str.session_state.statement).iloc[::-1], use_container_width=True)
 
 # ==========================================
 # 4. THE AUTO-REFRESH LOOP
