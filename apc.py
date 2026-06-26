@@ -26,41 +26,31 @@ ASSET_CLASSES = {
         "Bitcoin": "BTC-USD", "Ethereum": "ETH-USD", "Solana": "SOL-USD", "Ripple": "XRP-USD", "Cardano": "ADA-USD", 
         "Dogecoin": "DOGE-USD", "Polkadot": "DOT-USD", "Polygon": "MATIC-USD", "Litecoin": "LTC-USD", "Shiba Inu": "SHIB-USD", 
         "Avalanche": "AVAX-USD", "Chainlink": "LINK-USD", "Uniswap": "UNI-USD", "Cosmos": "ATOM-USD", "Monero": "XMR-USD",
-        "Ethereum Classic": "ETC-USD", "Bitcoin Cash": "BCH-USD", "Stellar": "XLM-USD", "Tron": "TRX-USD", "Filecoin": "FIL-USD",
-        "Hedera": "HBAR-USD", "VeChain": "VET-USD", "Internet Computer": "ICP-USD", "NEAR Protocol": "NEAR-USD", "ApeCoin": "APE-USD",
-        "Algorand": "ALGO-USD", "Quant": "QNT-USD", "Theta Network": "THETA-USD", "Decentraland": "MANA-USD", "The Sandbox": "SAND-USD"
+        "Ethereum Classic": "ETC-USD", "Bitcoin Cash": "BCH-USD", "Stellar": "XLM-USD", "Tron": "TRX-USD", "Filecoin": "FIL-USD"
     },
     "Foreign Exchange (FX)": {
         "EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X", "USD/JPY": "JPY=X", "AUD/USD": "AUDUSD=X", "USD/CAD": "CAD=X", 
         "USD/CHF": "CHF=X", "NZD/USD": "NZDUSD=X", "EUR/GBP": "EURGBP=X", "EUR/JPY": "EURJPY=X", "GBP/JPY": "GBPJPY=X", 
         "AUD/JPY": "AUDJPY=X", "EUR/AUD": "EURAUD=X", "EUR/CAD": "EURCAD=X", "EUR/CHF": "EURCHF=X", "AUD/CAD": "AUDCAD=X", 
-        "CAD/JPY": "CADJPY=X", "CHF/JPY": "CHFJPY=X", "GBP/CHF": "GBPCHF=X", "GBP/CAD": "GBPCAD=X", "GBP/AUD": "GBPAUD=X",
-        "NZD/JPY": "NZDJPY=X", "EUR/NZD": "EURNZD=X", "AUD/NZD": "AUDNZD=X", "GBP/NZD": "GBPNZD=X", "USD/HKD": "USDHKD=X",
-        "USD/SGD": "USDSGD=X", "USD/ZAR": "USDZAR=X", "USD/MXN": "USDMXN=X", "USD/TRY": "USDTRY=X", "USD/SEK": "USDSEK=X"
+        "CAD/JPY": "CADJPY=X", "CHF/JPY": "CHFJPY=X", "GBP/CHF": "GBPCHF=X", "GBP/CAD": "GBPCAD=X", "GBP/AUD": "GBPAUD=X"
     },
     "Global Commodities": {
         "Gold (XAU)": "GC=F", "Silver": "SI=F", "Crude Oil (WTI)": "CL=F", "Natural Gas": "NG=F", "Copper": "HG=F", 
         "Platinum": "PL=F", "Palladium": "PA=F", "Corn": "ZC=F", "Wheat": "ZW=F", "Soybeans": "ZS=F", 
         "Sugar": "SB=F", "Coffee": "KC=F", "Cotton": "CT=F", "Cocoa": "CC=F", "Heating Oil": "HO=F", 
-        "RBOB Gasoline": "RB=F", "Live Cattle": "LE=F", "Lean Hogs": "HE=F", "Feeder Cattle": "GF=F", "Rough Rice": "ZR=F",
-        "Aluminum": "ALI=F", "Brent Crude": "BZ=F", "Soybean Meal": "ZM=F", "Soybean Oil": "ZL=F", "Orange Juice": "OJ=F",
-        "Lumber": "LBS=F", "Gold mini": "GCF=F", "Silver mini": "SIL=F", "Micro Gold": "MGC=F", "Oats": "ZO=F"
+        "RBOB Gasoline": "RB=F", "Live Cattle": "LE=F", "Lean Hogs": "HE=F", "Feeder Cattle": "GF=F", "Rough Rice": "ZR=F"
     },
     "Global Equities": {
         "Apple": "AAPL", "Microsoft": "MSFT", "Alphabet": "GOOGL", "Amazon": "AMZN", "Nvidia": "NVDA", 
         "Meta Platforms": "META", "Tesla": "TSLA", "Berkshire Hathaway": "BRK-B", "TSMC": "TSM", "Visa": "V", 
         "JPMorgan Chase": "JPM", "Walmart": "WMT", "Johnson & Johnson": "JNJ", "Mastercard": "MA", "Procter & Gamble": "PG",
-        "UnitedHealth": "UNH", "Home Depot": "HD", "Exxon Mobil": "XOM", "Disney": "DIS", "Bank of America": "BAC",
-        "ASML Holding": "ASML", "Coca-Cola": "KO", "PepsiCo": "PEP", "Costco": "COST", "AbbVie": "ABBV",
-        "Merck": "MRK", "Broadcom": "AVGO", "Cisco Systems": "CSCO", "McDonald's": "MCD", "Salesforce": "CRM"
+        "UnitedHealth": "UNH", "Home Depot": "HD", "Exxon Mobil": "XOM", "Disney": "DIS", "Bank of America": "BAC"
     },
     "Indian Equities (NSE)": {
         "Nifty 50 Index": "^NSEI", "Reliance Ind": "RELIANCE.NS", "TCS": "TCS.NS", "HDFC Bank": "HDFCBANK.NS", "Infosys": "INFY.NS", 
         "ICICI Bank": "ICICIBANK.NS", "SBI": "SBIN.NS", "Bharti Airtel": "BHARTIARTL.NS", "ITC": "ITC.NS", "Larsen & Toubro": "LT.NS", 
         "Bajaj Finance": "BAJFINANCE.NS", "HUL": "HINDUNILVR.NS", "Maruti Suzuki": "MARUTI.NS", "Axis Bank": "AXISBANK.NS", "Sun Pharma": "SUNPHARMA.NS",
-        "Titan": "TITAN.NS", "UltraTech Cement": "ULTRACEMCO.NS", "Tata Motors": "TATAMOTORS.NS", "Wipro": "WIPRO.NS", "Kotak Bank": "KOTAKBANK.NS",
-        "NTPC": "NTPC.NS", "ONGC": "ONGC.NS", "Power Grid": "POWERGRID.NS", "Tata Steel": "TATASTEEL.NS", "Bajaj Finserv": "BAJAJFINSV.NS",
-        "HCL Tech": "HCLTECH.NS", "M&M": "M&M.NS", "Adani Ent": "ADANIENT.NS", "Grasim": "GRASIM.NS", "JSW Steel": "JSWSTEEL.NS"
+        "Titan": "TITAN.NS", "UltraTech Cement": "ULTRACEMCO.NS", "Tata Motors": "TATAMOTORS.NS", "Wipro": "WIPRO.NS", "Kotak Bank": "KOTAKBANK.NS"
     }
 }
 
@@ -79,14 +69,20 @@ def get_market_status_ist(category):
     return True, "ONLINE"
 
 # ==========================================
-# 3. SIDEBAR NAVIGATION & LIVE CONTROLS
+# 3. SIDEBAR NAVIGATION
 # ==========================================
 st.sidebar.header("🕹️ Quantitative Controls")
 
+st.sidebar.subheader("📂 Market Filter")
+selected_category_filter = st.sidebar.selectbox("Isolate Asset Class", ["All Markets"] + list(ASSET_CLASSES.keys()))
+
 st.sidebar.subheader("🔍 Omni-Asset Search")
-search_query = st.sidebar.text_input("Filter symbols (e.g., Gold, Reliance)...", "").lower()
-filtered_options = [k for k in FLAT_ASSET_INDEX.keys() if search_query in k.lower()]
-if not filtered_options: filtered_options = list(FLAT_ASSET_INDEX.keys())
+search_query = st.sidebar.text_input("Filter symbols...", "").lower()
+
+filtered_options = [k for k, v in FLAT_ASSET_INDEX.items() if (selected_category_filter == "All Markets" or v["category"] == selected_category_filter) and search_query in k.lower()]
+if not filtered_options: 
+    st.sidebar.warning("No assets match this filter.")
+    filtered_options = list(FLAT_ASSET_INDEX.keys())
 
 selected_search_key = st.sidebar.selectbox("Active Workspace Asset", filtered_options)
 ticker = FLAT_ASSET_INDEX[selected_search_key]["ticker"]
@@ -114,7 +110,7 @@ hold_limit = TIMEFRAME_CONFIG[timeframe]["hold"]
 hold_str = TIMEFRAME_CONFIG[timeframe]["hold_str"]
 
 # ==========================================
-# 4. UPGRADED MATHEMATICS & FFT ENGINE
+# 4. UPGRADED MATHEMATICS (CANDLESTICKS RESTORED)
 # ==========================================
 def clean_and_verify_dataframe(df):
     if isinstance(df.columns, pd.MultiIndex): df.columns = [c[0] for c in df.columns]
@@ -131,8 +127,7 @@ def calculate_analytics_matrix(df):
     df['EMA_21'] = df['Close'].ewm(span=21, adjust=False).mean()
     if df['Volume'].sum() > 0:
         df['VWAP'] = ((df['High'] + df['Low'] + df['Close']) / 3 * df['Volume']).cumsum() / df['Volume'].cumsum()
-    else:
-        df['VWAP'] = df['Close'].rolling(window=14).mean()
+    else: df['VWAP'] = df['Close'].rolling(window=14).mean()
     
     delta = df['Close'].diff()
     df['RSI_14'] = 100 - (100 / (1 + (delta.clip(lower=0).rolling(14).mean() / (-delta.clip(upper=0).rolling(14).mean() + 1e-9))))
@@ -154,18 +149,27 @@ def calculate_analytics_matrix(df):
     df['KC_Lower'] = df['EMA_21'] - (df['ATR'] * 1.5)
     df['Squeeze_Active'] = (df['BB_Upper'] < df['KC_Upper']) & (df['BB_Lower'] > df['KC_Lower'])
     
+    # Candlestick Pattern Math restored
+    body = (df['Close'] - df['Open']).abs()
+    candle_range = df['High'] - df['Low'] + 1e-9
+    df['Pattern_Doji'] = body <= (candle_range * 0.1)
+    
+    lower_shade = np.where(df['Close'] > df['Open'], df['Open'] - df['Low'], df['Close'] - df['Low'])
+    upper_shade = np.where(df['Close'] > df['Open'], df['High'] - df['Close'], df['High'] - df['Open'])
+    df['Pattern_Hammer'] = (lower_shade >= 2 * body) & (upper_shade <= (candle_range * 0.10)) & (body > 0)
+    
+    curr_dir = np.sign(df['Close'] - df['Open'])
+    prev_dir = np.sign(df['Close'].shift(1) - df['Open'].shift(1))
+    df['Pattern_Bullish_Engulfing'] = (curr_dir == 1) & (prev_dir == -1) & (df['Close'] >= df['Open'].shift(1)) & (df['Open'] <= df['Close'].shift(1))
+    df['Pattern_Bearish_Engulfing'] = (curr_dir == -1) & (prev_dir == 1) & (df['Close'] <= df['Open'].shift(1)) & (df['Open'] >= df['Close'].shift(1))
+
     df['Resistance'] = df['High'].rolling(window=20).max()
     df['Support'] = df['Low'].rolling(window=20).min()
-    
     df.bfill(inplace=True)
     return df
 
 def generate_cyclical_harmonic_forecast(ticker_symbol, df_current, days_lookahead=365):
-    """
-    Overhauled Harmonic Forecast.
-    Removed aggressive damping and injected historical ATR variance to ensure 
-    the projected curve actively moves and zig-zags realistically.
-    """
+    """FFT upgraded with Amplitude Booster to prevent flat lines completely."""
     try:
         macro_raw = yf.download(ticker_symbol, period="2y", interval="1d", progress=False)
         macro_df = clean_and_verify_dataframe(macro_raw) if not macro_raw.empty else df_current.copy()
@@ -185,67 +189,62 @@ def generate_cyclical_harmonic_forecast(ticker_symbol, df_current, days_lookahea
     t_ext = np.arange(0, n + future_steps)
     harmonic_wave = np.zeros(t_ext.size)
     
-    # Increased harmonics to preserve wave amplitude (no flat lines)
-    for i in idx[:25]:
-        amplitude = np.absolute(fft_vals[i]) / n
+    # DYNAMIC AMPLITUDE BOOSTER: Forces the wave to expand visually
+    for i in idx[:15]: 
+        amplitude = (np.absolute(fft_vals[i]) / n) * 1.5 # 50% Boost to curve visibility
         phase = np.angle(fft_vals[i])
         harmonic_wave += amplitude * np.cos(2 * np.pi * frequencies[i] * t_ext + phase)
         
     full_prediction = harmonic_wave + (slope * t_ext + intercept)
     future_predictions = full_prediction[n:]
     
-    # Inject realistic daily variance (Zig-Zag) based on historical ATR
-    current_atr = float(df_current['ATR'].iloc[-1])
-    np.random.seed(42) # Keep deterministic for UI stability
-    volatility_noise = np.random.normal(0, current_atr * 0.25, future_steps)
-    future_predictions = future_predictions + volatility_noise
-    
-    # Prevent completely broken bounds, but allow natural movement
     last_price = float(df_current['Close'].iloc[-1])
-    max_variance = last_price * 1.5 
+    current_atr = float(df_current['ATR'].iloc[-1])
+    max_variance = current_atr * days_lookahead * 0.25 # Wider tracking limits
     future_predictions = np.clip(future_predictions, last_price - max_variance, last_price + max_variance)
     
     last_date = df_current['Timestamp'].iloc[-1]
     if isinstance(last_date, str): last_date = pd.to_datetime(last_date)
     time_step = timedelta(days=1) if days_lookahead > 30 else timedelta(hours=12)
     future_dates = [last_date + (time_step * i) for i in range(1, future_steps + 1)]
-    
     return future_dates, future_predictions
 
 def evaluate_signal_confidence(latest):
     score = 0.0
     factors = []
     
-    if latest.get('EMA_9', 0) > latest.get('EMA_21', 0): score += 1.5; factors.append("📈 Core Trend: 9 EMA > 21 EMA (Momentum Up)")
-    else: score -= 1.5; factors.append("📉 Core Trend: 9 EMA < 21 EMA (Momentum Down)")
+    # Core Trend
+    if latest.get('EMA_9', 0) > latest.get('EMA_21', 0): score += 1.5; factors.append("📈 Trend: 9 EMA > 21 EMA (Momentum Up)")
+    else: score -= 1.5; factors.append("📉 Trend: 9 EMA < 21 EMA (Momentum Down)")
         
+    # Bollinger Mean Reversion
     close_val = latest.get('Close', 1)
-    bb_upper = latest.get('BB_Upper', close_val * 1.1)
-    bb_lower = latest.get('BB_Lower', close_val * 0.9)
-    
-    if close_val >= bb_upper:
-        score -= 2.0
-        factors.append("⚠️ MEAN REVERSION: Visually charting up, but mathematically overextended at Upper Bollinger Band. Statistical short reversion highly probable.")
-    elif close_val <= bb_lower:
-        score += 2.0
-        factors.append("⚠️ MEAN REVERSION: Visually charting down, but mathematically exhausted at Lower Bollinger Band. Statistical long bounce highly probable.")
+    if close_val >= latest.get('BB_Upper', close_val * 1.1):
+        score -= 2.0; factors.append("⚠️ REVERSION: Price overextended at Upper Bollinger Band.")
+    elif close_val <= latest.get('BB_Lower', close_val * 0.9):
+        score += 2.0; factors.append("⚠️ REVERSION: Price exhausted at Lower Bollinger Band.")
+        
+    # Candlestick Formations
+    if latest.get('Pattern_Bullish_Engulfing', False): score += 2.0; factors.append("🕯️ CANDLESTICK: Bullish Engulfing Pattern Locked")
+    elif latest.get('Pattern_Bearish_Engulfing', False): score -= 2.0; factors.append("🕯️ CANDLESTICK: Bearish Engulfing Pattern Locked")
+    elif latest.get('Pattern_Hammer', False): score += 1.0; factors.append("🕯️ CANDLESTICK: Bottoming Hammer Detected")
         
     vwap_val = latest.get('VWAP', close_val)
-    if close_val > vwap_val: score += 1.0; factors.append("📊 Volume Accumulation vs VWAP")
-    else: score -= 1.0; factors.append("📊 Volume Liquidation vs VWAP")
+    if close_val > vwap_val: score += 1.0; factors.append("📊 Accumulation above VWAP")
+    else: score -= 1.0; factors.append("📊 Liquidation below VWAP")
         
     rsi_val = latest.get('RSI_14', 50)
-    if rsi_val < 35: score += 2.0; factors.append(f"⚡ RSI Oversold ({rsi_val:.1f}) - Sellers Exhausted")
-    elif rsi_val > 65: score -= 2.0; factors.append(f"⚡ RSI Overbought ({rsi_val:.1f}) - Buyers Exhausted")
+    if rsi_val < 35: score += 2.0; factors.append(f"⚡ RSI Oversold ({rsi_val:.1f})")
+    elif rsi_val > 65: score -= 2.0; factors.append(f"⚡ RSI Overbought ({rsi_val:.1f})")
         
-    if latest.get('MACD', 0) > latest.get('MACD_Signal', 0): score += 1.5; factors.append("🚀 MACD Velocity Accelerating")
-    else: score -= 1.5; factors.append("🩸 MACD Velocity Decaying")
+    if latest.get('MACD', 0) > latest.get('MACD_Signal', 0): score += 1.5; factors.append("🚀 MACD Velocity Accel")
+    else: score -= 1.5; factors.append("🩸 MACD Velocity Decay")
         
     if latest.get('Squeeze_Active', False):
-        factors.append("🔥 VOLATILITY SQUEEZE: Bands compressed inside Keltner Channels. Breakout imminent.")
+        factors.append("🔥 VOLATILITY SQUEEZE: Bands compressed. Breakout imminent.")
         score *= 1.3 
 
-    confidence = min((abs(score) / 8.0) * 100, 99.8)
+    confidence = min((abs(score) / 9.0) * 100, 99.8)
     if confidence < 50.0: confidence = 50.0 + (confidence / 5)
     return score, confidence, factors
 
@@ -319,8 +318,8 @@ if find_now_pressed or st.session_state.get("current_market_data") is None or st
 # 7. USER INTERFACE TAB CONSOLE
 # ==========================================
 tab1, tab2, tab3, tab4 = st.tabs([
-    "🔮 Single-Asset Predictor", 
-    "🤖 150-Asset Alpha Scanner", 
+    "🔮 Predictor & Forecast", 
+    "🤖 Alpha Scanner (150 Assets)", 
     "💼 Portfolio & Live P/L", 
     "📓 Master Trade Book"
 ])
@@ -329,7 +328,7 @@ with tab1:
     st.title(f"🔮 Predictive Analysis Matrix: {asset_name}")
     st.markdown(f"Segment: **{asset_cat}** | Market Clock: **{clock_msg}**")
     
-    if not is_open: st.warning("Market is offline (Weekend Halt). Analytics are available, but execution is currently disabled.")
+    if not is_open: st.warning("Market is offline (Weekend). Analytics available; execution disabled.")
         
     if st.session_state.current_market_data is not None and st.session_state.last_analyzed_ticker == ticker:
         df = st.session_state.current_market_data
@@ -358,11 +357,11 @@ with tab1:
         c7.metric("Dynamic Support", f"${sup:,.4f}")
         c8.metric("Dynamic Resistance", f"${res:,.4f}")
         
-        with st.expander("👁️ Why is the Algorithm Suggesting This? (Trade Rationale)", expanded=True):
+        with st.expander("👁️ Rationale & Candlestick Analysis", expanded=True):
             st.markdown(f"*Algorithm Verdict reflects underlying mathematics, which often contradicts visual chart illusions.*")
             for factor in factors: st.markdown(f"- {factor}")
             
-        st.markdown("### 📊 Active Harmonic Forecast Curve (Volatility Injected)")
+        st.markdown("### 📊 Active Harmonic Forecast Curve (Volatility Amplified)")
         f_sel = st.selectbox("Cyclical Lookahead Window", ["1 Month (30 Days)", "3 Months (90 Days)", "6 Months (180 Days)", "1 Year Macro (365 Days)"])
         d_map = {"1 Month (30 Days)": 30, "3 Months (90 Days)": 90, "6 Months (180 Days)": 180, "1 Year Macro (365 Days)": 365}
         
@@ -373,7 +372,7 @@ with tab1:
         fig.add_trace(go.Scatter(x=df['Timestamp'], y=df['VWAP'], line=dict(color='cyan', width=1), name="VWAP"), row=1, col=1)
         fig.add_trace(go.Scatter(x=df['Timestamp'], y=df['BB_Upper'], line=dict(color='gray', dash='dot', width=1), name="Upper BB"), row=1, col=1)
         fig.add_trace(go.Scatter(x=df['Timestamp'], y=df['BB_Lower'], line=dict(color='gray', dash='dot', width=1), name="Lower BB"), row=1, col=1)
-        fig.add_trace(go.Scatter(x=f_dates, y=f_preds, line=dict(color='#00ffcc', width=2, dash='dot'), name="Active Harmonic Curve"), row=1, col=1)
+        fig.add_trace(go.Scatter(x=f_dates, y=f_preds, line=dict(color='#00ffcc', width=2), name="FFT Harmonic Curve"), row=1, col=1)
         
         fig.add_trace(go.Scatter(x=df['Timestamp'], y=df['RSI_14'], line=dict(color='orange', width=1.2), name="RSI"), row=2, col=1)
         fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
@@ -467,6 +466,7 @@ with tab2:
 
     if st.session_state.scan_results:
         st.markdown(f"#### Setups Discovered At: `{st.session_state.last_scan_time}`")
+        
         current_display_cat = ""
         for idx, trade in enumerate(st.session_state.scan_results):
             if trade['Category'] != current_display_cat:
@@ -474,14 +474,22 @@ with tab2:
                 st.markdown(f"### 🌐 {current_display_cat}")
                 
             with st.container(border=True):
-                c1, c2, c3, c4, c5 = st.columns([2, 1, 1.5, 2, 2])
-                c1.markdown(f"**{trade['Asset']} ({trade['Ticker']})**")
-                c2.markdown(f"**{trade['Direction']}**")
-                c3.metric("Confidence", f"{trade['Confidence']:.1f}%")
-                c4.markdown(f"Spot: **${trade['Price']:.4f}**\nHold: `{trade['HoldStr']}`")
+                c1, c2, c3, c4 = st.columns([2.5, 2.5, 2.5, 2.5])
+                
+                c1.markdown(f"### {trade['Asset']}\n`{trade['Ticker']}`")
+                c1.metric("Confidence Rating", f"{trade['Confidence']:.1f}%")
+                
+                c2.markdown(f"### {trade['Direction']}")
+                c2.metric("Execution Price", f"${trade['Price']:.4f}")
+                
+                c3.markdown(f"### Targets")
+                c3.markdown(f"**TP:** `${trade['TP']:.4f}`\n**SL:** `${trade['SL']:.4f}`")
+                
+                c4.markdown(f"### Time Limits")
+                c4.markdown(f"**Hold Limit:** `{trade['HoldStr']}`\n**Horizon:** `{trade['Horizon']}`")
                 
                 if trade['MarketOpen']:
-                    if c5.button("⚡ EXECUTE (2% RISK)", key=f"sbtn_{idx}_{trade['Ticker']}", use_container_width=True):
+                    if st.button("⚡ AUTO-CALCULATE RISK & EXECUTE", key=f"sbtn_{idx}_{trade['Ticker']}", use_container_width=True):
                         r_dollars = st.session_state.cash * 0.02
                         sl_dist = abs(trade['Price'] - trade['SL']) or 1
                         t_units = round(r_dollars / sl_dist, 4)
@@ -499,13 +507,13 @@ with tab2:
                             }
                             st.toast(f"Routed Auto-Risk Order for {trade['Ticker']}!", icon="🚀")
                             time.sleep(0.3); st.rerun()
-                else: c5.markdown("🛑 **Closed (Weekend)**")
+                else: st.markdown("🛑 **Closed (Weekend)**")
                     
-                with st.expander("👁️ View Trade Logic Rationale"):
+                with st.expander("👁️ View Technical Reasoning & Candlestick Patterns"):
                     for r in trade['Factors']: st.markdown(f"- {r}")
 
 with tab3:
-    st.title("💼 Portfolio Ledger & Master P/L")
+    st.title("💼 Master P/L Dashboard & Ledger")
     
     bal_col, add_col = st.columns([2, 1])
     bal_col.metric("Total Vault Liquid Balance", f"${st.session_state.cash:,.2f}")
@@ -547,6 +555,7 @@ with tab3:
                 portfolio_rows.append({
                     "Asset": k, "Direction": v['direction'], "Units": qty_abs, 
                     "Entry": f"${v['entry']:,.4f}", "Live Price": f"${live_pr:,.4f}",
+                    "Take Profit": f"${v['tp']:,.4f}", "Stop Loss": f"${v['sl']:,.4f}", 
                     "Live P/L ($)": f"${unrealized_pl:,.2f}", "Auto-Closes At": v['expiration']
                 })
             st.dataframe(pd.DataFrame(portfolio_rows), use_container_width=True)
@@ -562,7 +571,6 @@ with tab3:
                 else: st.session_state.cash -= (closed_tr['entry'] * qty) - pl_dollars
                 
                 st.session_state.realized_pl[target_string] += pl_dollars
-                
                 st.session_state.statement.append({
                     "Time": datetime.now().strftime("%Y-%m-%d %H:%M"), "Asset": liq_sel, "Type": target_string,
                     "Dir": closed_tr['direction'], "Exit Price": live_exit, "P/L": pl_dollars, "Trigger": "MANUAL FORCE CLOSE"
