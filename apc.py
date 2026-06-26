@@ -1,7 +1,6 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import pandas_ta as ta
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime
@@ -10,37 +9,14 @@ import time
 # Page config
 st.set_page_config(page_title="QuantEdge Predictive Engine", layout="wide")
 
-# =========================================================================
-# NOW STANDARD IMPORTS CAN SAFELY EXECUTE
-# =========================================================================
-import streamlit as st
-import yfinance as yf
-import pandas_ta as ta  # The new quantitative library will now load successfully!
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from datetime import datetime
-import time
-
-# Page config
-st.set_page_config(page_title="QuantEdge Predictive Engine", layout="wide")
-
-# ==========================================
-# 1. INITIALIZE ADVANCED PERSISTENT MEMORY
-# ==========================================
-if "cash" not in st.session_state:
-    st.session_state.cash = 10000.00  
-if "portfolio" not in st.session_state:
-    st.session_state.portfolio = {}   
-if "statement" not in st.session_state:
-    st.session_state.statement = []   
-if "engine_executed" not in st.session_state:
-    st.session_state.engine_executed = False
-if "current_market_data" not in st.session_state:
-    st.session_state.current_market_data = None
-if "last_analyzed_ticker" not in st.session_state:
-    st.session_state.last_analyzed_ticker = None
-if "live_price" not in st.session_state:
-    st.session_state.live_price = 0.0
+# Persistent Memory
+if "cash" not in st.session_state: st.session_state.cash = 10000.00
+if "portfolio" not in st.session_state: st.session_state.portfolio = {}
+if "statement" not in st.session_state: st.session_state.statement = []
+if "engine_executed" not in st.session_state: st.session_state.engine_executed = False
+if "current_market_data" not in st.session_state: st.session_state.current_market_data = None
+if "last_analyzed_ticker" not in st.session_state: st.session_state.last_analyzed_ticker = None
+if "live_price" not in st.session_state: st.session_state.live_price = 0.0
 
 ASSET_CLASSES = {
     "Equities": {"Apple": "AAPL", "Tesla": "TSLA", "Nvidia": "NVDA", "S&P 500": "SPY"},
@@ -49,278 +25,63 @@ ASSET_CLASSES = {
     "Commodities": {"Gold": "GC=F", "Crude Oil": "CL=F"}
 }
 
-# ==========================================
-# 2. CONTROLS & AUTO-PILOT
-# ==========================================
+# Sidebar Controls
 st.sidebar.header("🕹️ Terminal Controls")
-
-def reset_engine():
-    st.session_state.engine_executed = False
-
-asset_type = st.sidebar.selectbox("Asset Class", list(ASSET_CLASSES.keys()), on_change=reset_engine)
-asset_name = st.sidebar.selectbox("Select Ticker", list(ASSET_CLASSES[asset_type].keys()), on_change=reset_engine)
+asset_type = st.sidebar.selectbox("Asset Class", list(ASSET_CLASSES.keys()))
+asset_name = st.sidebar.selectbox("Select Ticker", list(ASSET_CLASSES[asset_type].keys()))
 ticker = ASSET_CLASSES[asset_type][asset_name]
-
-timeframe = st.sidebar.selectbox("Interval", ["1 Minute", "5 Minutes", "15 Minutes", "1 Hour"], on_change=reset_engine)
-chart_style = st.sidebar.radio("Chart Style", ["Candlestick", "Line Chart"])
-
-st.sidebar.divider()
-st.sidebar.header("⚡ Live Auto-Pilot")
+timeframe = st.sidebar.selectbox("Interval", ["1 Minute", "5 Minutes", "15 Minutes", "1 Hour"])
 auto_refresh = st.sidebar.toggle("Enable Fast-Sync Loop", value=False)
-refresh_rate = st.sidebar.slider("Refresh Interval (Sec)", 5, 60, 5)
 
-interval_mapping = {
-    "1 Minute": {"int": "1m", "period": "1d"},
-    "5 Minutes": {"int": "5m", "period": "5d"},
-    "15 Minutes": {"int": "15m", "period": "5d"},
-    "1 Hour": {"int": "1h", "period": "60d"}
-}
-
-# ==========================================
-# 3. HEAVYWEIGHT QUANTITATIVE DATA PULL
-# ==========================================
-execute_clicked = st.sidebar.button("🔄 Force Data Sync", use_container_width=True)
-
-if execute_clicked or auto_refresh or not st.session_state.engine_executed:
-    chosen_int = interval_mapping[timeframe]["int"]
-    chosen_per = interval_mapping[timeframe]["period"]
+# Execution Logic
+if st.sidebar.button("🔄 Sync Market Data"):
+    interval_map = {"1 Minute": "1m", "5 Minutes": "5m", "15 Minutes": "15m", "1 Hour": "1h"}
+    period_map = {"1 Minute": "1d", "5 Minutes": "5d", "15 Minutes": "5d", "1 Hour": "60d"}
     
-    df = yf.download(ticker, period=chosen_per, interval=chosen_int, progress=False)
-    
-    if df is not None and not df.empty:
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
+    df = yf.download(ticker, period=period_map[timeframe], interval=interval_map[timeframe], progress=False)
+    if not df.empty:
+        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
         df.reset_index(inplace=True)
         
-       # --- NATIVE PANDAS INDICATORS (No pandas-ta required) ---
+        # Native Math (Replacement for pandas-ta)
         df['EMA_9'] = df['Close'].ewm(span=9, adjust=False).mean()
         df['EMA_21'] = df['Close'].ewm(span=21, adjust=False).mean()
-        
-        # RSI Calculation
-        delta = df['Close'].diff()
-        gain = delta.clip(lower=0)
-        loss = -delta.clip(upper=0)
-        avg_gain = gain.rolling(14).mean()
-        avg_loss = loss.rolling(14).mean()
-        rs = avg_gain / avg_loss
-        df['RSI_14'] = 100 - (100 / (1 + rs))
-        
-        # MACD Calculation
-        exp1 = df['Close'].ewm(span=12, adjust=False).mean()
-        exp2 = df['Close'].ewm(span=26, adjust=False).mean()
-        df['MACD_12_26_9'] = exp1 - exp2
-        df['MACDs_12_26_9'] = df['MACD_12_26_9'].ewm(span=9, adjust=False).mean()
-        df['MACDh_12_26_9'] = df['MACD_12_26_9'] - df['MACDs_12_26_9']
+        df['RSI'] = 100 - (100 / (1 + (df['Close'].diff().clip(lower=0).rolling(14).mean() / -df['Close'].diff().clip(upper=0).rolling(14).mean())))
         
         # Bollinger Bands
-        sma_20 = df['Close'].rolling(20).mean()
-        std_20 = df['Close'].rolling(20).std()
-        df['BBU_20_2.0'] = sma_20 + (std_20 * 2)
-        df['BBL_20_2.0'] = sma_20 - (std_20 * 2)
+        sma = df['Close'].rolling(20).mean()
+        std = df['Close'].rolling(20).std()
+        df['BBU'] = sma + (std * 2)
+        df['BBL'] = sma - (std * 2)
         
-        # ATR
-        high_low = df['High'] - df['Low']
-        df['ATRr_14'] = high_low.rolling(14).mean()
-        
-        # Remove pandas-ta import at the top of your script
-        
-        # Clean NaN values safely 
-        df.bfill(inplace=True)
-        
-        st.session_state.live_price = float(df['Close'].iloc[-1])
         st.session_state.current_market_data = df
+        st.session_state.live_price = float(df['Close'].iloc[-1])
         st.session_state.engine_executed = True
         st.session_state.last_analyzed_ticker = ticker
-        
-        # Auto-Liquidation Checks
-        if ticker in st.session_state.portfolio:
-            pos = st.session_state.portfolio[ticker]
-            trigger = None
-            if pos['tp'] > 0 and st.session_state.live_price >= pos['tp']: trigger = "TAKE PROFIT"
-            elif pos['sl'] > 0 and st.session_state.live_price <= pos['sl']: trigger = "STOP LOSS"
-                
-            if trigger:
-                revenue = pos['qty'] * st.session_state.live_price
-                st.session_state.cash += revenue
-                st.session_state.statement.append({
-                    "Time": datetime.now().strftime("%H:%M:%S"), "Asset": ticker, "Action": f"AUTO-SELL ({trigger})",
-                    "Qty": pos['qty'], "Price": st.session_state.live_price, "Total Value": revenue
-                })
-                del st.session_state.portfolio[ticker]
-                st.toast(f"{trigger} HIT! Auto-Sold {ticker}", icon="🔥")
 
-# ==========================================
-# 4. PREDICTIVE FORECAST & UI
-# ==========================================
-tab1, tab2 = st.tabs(["🔮 Predictive Terminal", "💼 Portfolio Ledger"])
-
-with tab1:
-    if st.session_state.engine_executed and st.session_state.current_market_data is not None:
-        df = st.session_state.current_market_data
-        curr_p = st.session_state.live_price
-        active_ticker = st.session_state.last_analyzed_ticker
-        latest = df.iloc[-1]
-        
-        st.title(f"🔮 Predictive Forecast: {asset_name}")
-        
-        # --- THE PREDICTIVE CONSENSUS ALGORITHM ---
-        score = 0
-        max_score = 6 
-        
-        ema9 = latest.get('EMA_9', curr_p)
-        ema21 = latest.get('EMA_21', curr_p)
-        rsi = latest.get('RSI_14', 50.0)
-        macd = latest.get('MACD_12_26_9', 0.0)
-        macds = latest.get('MACDs_12_26_9', 0.0)
-        stoch_k = latest.get('STOCHk_14_3_3', 50.0)
-        stoch_d = latest.get('STOCHd_14_3_3', 50.0)
-        bb_upper = latest.get('BBU_20_2.0', curr_p * 1.01)
-        bb_lower = latest.get('BBL_20_2.0', curr_p * 0.99)
-        atr = latest.get('ATRr_14', curr_p * 0.01)
-
-        if ema9 > ema21: score += 1
-        else: score -= 1
-            
-        if rsi < 35: score += 1.5 
-        elif rsi > 65: score -= 1.5 
-        elif ema9 > ema21 and rsi > 50: score += 0.5 
-            
-        if macd > macds: score += 1
-        else: score -= 1
-            
-        if stoch_k > stoch_d and stoch_k < 80: score += 1
-        elif stoch_k < stoch_d and stoch_k > 20: score -= 1
-            
-        if curr_p > ema21: score += 1
-        else: score -= 1
-        
-        confidence_pct = min((abs(score) / max_score) * 100, 99.9)
-        
-        if score >= 2:
-            verdict = "BULLISH (UPWARD FORECAST) 🟢"
-            proj_entry = ema9 
-            proj_exit = bb_upper + (atr * 0.5) 
-            proj_sl = bb_lower - (atr * 0.5)
-        elif score <= -2:
-            verdict = "BEARISH (DOWNWARD FORECAST) 🔴"
-            proj_entry = ema21 
-            proj_exit = bb_lower - (atr * 0.5)
-            proj_sl = bb_upper + (atr * 0.5)
-        else:
-            verdict = "CONSOLIDATION (NEUTRAL) ⚪"
-            proj_entry = curr_p
-            proj_exit = bb_upper
-            proj_sl = bb_lower
-            confidence_pct = 50.0
-
-        st.markdown("### 🤖 Institutional Forecast Engine")
-        v_col1, v_col2, v_col3 = st.columns(3)
-        v_col1.metric("Predicted Direction", verdict)
-        v_col2.metric("Algorithmic Confidence", f"{confidence_pct:.1f}%")
-        v_col3.metric("Current Live Price", f"${curr_p:,.4f}")
-        
-        st.info(f"**Engine Recommendation:** Look for a predictive **Entry near ${proj_entry:,.2f}**. Set your primary **Exit Target at ${proj_exit:,.2f}**, with a hard statistical **Stop-Loss around ${proj_sl:,.2f}**.")
-
-        # --- DYNAMIC CHARTING (With defensive fallback checks to prevent KeyError crashes) ---
-        fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.2, 0.2])
-        time_col = df['Datetime'] if 'Datetime' in df else df['Date']
-        
-        if chart_style == "Candlestick":
-            fig.add_trace(go.Candlestick(x=time_col, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="Price"), row=1, col=1)
-        else:
-            fig.add_trace(go.Scatter(x=time_col, y=df['Close'], name="Price", line=dict(color='cyan', width=2)), row=1, col=1)
-            
-        bbu_series = df['BBU_20_2.0'] if 'BBU_20_2.0' in df.columns else df['Close']
-        bbl_series = df['BBL_20_2.0'] if 'BBL_20_2.0' in df.columns else df['Close']
-        ema9_series = df['EMA_9'] if 'EMA_9' in df.columns else df['Close']
-        ema21_series = df['EMA_21'] if 'EMA_21' in df.columns else df['Close']
-        rsi_series = df['RSI_14'] if 'RSI_14' in df.columns else pd.Series(50, index=df.index)
-        macd_hist = df['MACDh_12_26_9'] if 'MACDh_12_26_9' in df.columns else pd.Series(0, index=df.index)
-
-        fig.add_trace(go.Scatter(x=time_col, y=bbu_series, line=dict(color='gray', width=1, dash='dot'), name="Upper Band"), row=1, col=1)
-        fig.add_trace(go.Scatter(x=time_col, y=bbl_series, line=dict(color='gray', width=1, dash='dot'), fill='tonexty', fillcolor='rgba(128,128,128,0.1)', name="Lower Band"), row=1, col=1)
-        fig.add_trace(go.Scatter(x=time_col, y=ema9_series, line=dict(color='yellow', width=1.5), name="EMA 9"), row=1, col=1)
-        fig.add_trace(go.Scatter(x=time_col, y=ema21_series, line=dict(color='fuchsia', width=1.5), name="EMA 21"), row=1, col=1)
-        
-        fig.add_trace(go.Scatter(x=time_col, y=rsi_series, line=dict(color='orange'), name="RSI"), row=2, col=1)
-        fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
-        fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
-        
-        fig.add_trace(go.Bar(x=time_col, y=macd_hist, marker_color='blue', name="MACD Hist"), row=3, col=1)
-
-        fig.update_layout(xaxis_rangeslider_visible=False, height=650, template="plotly_dark", margin=dict(t=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
-
-        # --- EXECUTION FORM ---
-        st.markdown("### 💼 Execute Projected Trade")
-        st.write(f"**Purchasing Power:** `${st.session_state.cash:,.2f}`")
-        
-        with st.form("trade_form"):
-            t_col1, t_col2, t_col3 = st.columns(3)
-            t_qty = t_col1.number_input("Quantity", min_value=0.01, max_value=1000.0, value=1.00, step=0.1)
-            tp_price = t_col2.number_input("Take Profit Target ($)", value=float(proj_exit), step=0.01)
-            sl_price = t_col3.number_input("Stop Loss Target ($)", value=float(proj_sl), step=0.01)
-            
-            b_col1, b_col2 = st.columns(2)
-            buy_intent = b_col1.form_submit_button("🟢 Buy Market", use_container_width=True)
-            sell_intent = b_col2.form_submit_button("🔴 Sell Position", use_container_width=True)
-
-        if buy_intent:
-            cost = t_qty * curr_p
-            if st.session_state.cash >= cost:
-                st.session_state.cash -= cost
-                if active_ticker in st.session_state.portfolio:
-                    old_qty = st.session_state.portfolio[active_ticker].get('qty', 0)
-                    old_avg = st.session_state.portfolio[active_ticker].get('avg_entry', 0)
-                    new_qty = old_qty + t_qty
-                    new_avg = ((old_qty * old_avg) + (t_qty * curr_p)) / new_qty
-                    st.session_state.portfolio[active_ticker] = {'qty': new_qty, 'avg_entry': new_avg, 'tp': tp_price, 'sl': sl_price}
-                else:
-                    st.session_state.portfolio[active_ticker] = {'qty': t_qty, 'avg_entry': curr_p, 'tp': tp_price, 'sl': sl_price}
-                st.session_state.statement.append({"Time": datetime.now().strftime("%H:%M:%S"), "Asset": active_ticker, "Action": "BUY", "Qty": t_qty, "Price": curr_p, "Total Value": cost})
-                st.success(f"Executed BUY at ${curr_p:.2f}")
-                time.sleep(0.5)
-                st.rerun()
-            else: st.error("Insufficient Capital.")
-
-        if sell_intent:
-            if active_ticker in st.session_state.portfolio and st.session_state.portfolio[active_ticker].get('qty', 0) >= t_qty:
-                revenue = t_qty * curr_p
-                st.session_state.cash += revenue
-                st.session_state.portfolio[active_ticker]['qty'] -= t_qty
-                if st.session_state.portfolio[active_ticker]['qty'] <= 0: del st.session_state.portfolio[active_ticker]
-                st.session_state.statement.append({"Time": datetime.now().strftime("%H:%M:%S"), "Asset": active_ticker, "Action": "SELL", "Qty": t_qty, "Price": curr_p, "Total Value": revenue})
-                st.success(f"Executed SELL at ${curr_p:.2f}")
-                time.sleep(0.5)
-                st.rerun()
-            else: st.error("Not enough units.")
-    else:
-        st.info("Waiting for market data connection...")
-
-# ==========================================
-# 5. PORTFOLIO LEDGER
-# ==========================================
-with tab2:
-    st.header("📈 Active Risk Ledger")
-    st.metric("Liquid Cash Balance", f"${st.session_state.cash:,.2f}")
+# UI Rendering
+if st.session_state.engine_executed and st.session_state.current_market_data is not None:
+    df = st.session_state.current_market_data
+    curr_p = st.session_state.live_price
     
-    if st.session_state.portfolio:
-        st.subheader("Open Positions")
-        p_data = []
-        for port_t, d in st.session_state.portfolio.items():
-            if not isinstance(d, dict): d = {'qty': float(d), 'avg_entry': 0.0, 'tp': 0.0, 'sl': 0.0}
-            lp = st.session_state.live_price if port_t == st.session_state.last_analyzed_ticker else d.get('avg_entry', 0.0)
-            p_data.append({
-                "Asset": port_t, "Units": d.get('qty', 0), "Entry": f"${d.get('avg_entry', 0):,.2f}",
-                "TP": f"${d.get('tp', 0):,.2f}", "SL": f"${d.get('sl', 0):,.2f}", "Live P&L": f"${(lp - d.get('avg_entry', 0)) * d.get('qty', 0):,.2f}"
-            })
-        st.dataframe(pd.DataFrame(p_data), use_container_width=True)
-    else: st.info("No open positions.")
-        
-    if st.session_state.statement:
-        st.subheader("Execution History")
-        st.dataframe(pd.DataFrame(st.session_state.statement).iloc[::-1], use_container_width=True)
+    st.metric("Live Price", f"${curr_p:,.4f}")
+    
+    fig = go.Figure()
+    fig.add_trace(go.Candlestick(x=df['Date'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close']))
+    fig.add_trace(go.Scatter(x=df['Date'], y=df['EMA_9'], name="EMA 9", line=dict(color='yellow')))
+    fig.add_trace(go.Scatter(x=df['Date'], y=df['BBU'], line=dict(color='gray', dash='dot'), name="Upper Band"))
+    fig.add_trace(go.Scatter(x=df['Date'], y=df['BBL'], line=dict(color='gray', dash='dot'), name="Lower Band"))
+    
+    fig.update_layout(template="plotly_dark", xaxis_rangeslider_visible=False)
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Trade Form
+    with st.form("trade"):
+        qty = st.number_input("Quantity", value=1.0)
+        if st.form_submit_button("Buy"):
+            st.session_state.portfolio[ticker] = st.session_state.portfolio.get(ticker, 0) + qty
+            st.success("Trade Executed")
 
 if auto_refresh:
-    time.sleep(refresh_rate)
+    time.sleep(5)
     st.rerun()
