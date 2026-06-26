@@ -1,7 +1,23 @@
+import numpy as np
+import pandas as pd
+
+# =========================================================================
+# 🛠️ CRITICAL LEGACY PATCHES (MUST RUN BEFORE IMPORTING PANDAS_TA)
+# =========================================================================
+# 1. Fixes NumPy 2.0+ removal of np.NaN
+if not hasattr(np, "NaN"):
+    np.NaN = np.nan
+
+# 2. Fixes Pandas 2.0+ removal of Series.append() by routing to internal fallback
+if not hasattr(pd.Series, "append"):
+    pd.Series.append = pd.Series._append
+
+# =========================================================================
+# NOW STANDARD IMPORTS CAN SAFELY EXECUTE
+# =========================================================================
 import streamlit as st
 import yfinance as yf
-import pandas as pd
-import pandas_ta as ta  # The new quantitative library
+import pandas_ta as ta  # The new quantitative library will now load successfully!
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime
@@ -79,15 +95,15 @@ if execute_clicked or auto_refresh or not st.session_state.engine_executed:
         df.reset_index(inplace=True)
         
         # --- MULTI-TOOL INDICATOR SUITE (pandas-ta) ---
-        df.ta.ema(length=9, append=True)  # Fast Trend
-        df.ta.ema(length=21, append=True) # Slow Trend
-        df.ta.rsi(length=14, append=True) # Momentum
-        df.ta.macd(fast=12, slow=26, signal=9, append=True) # Velocity
-        df.ta.bbands(length=20, std=2, append=True) # Volatility/Standard Deviation
-        df.ta.stoch(k=14, d=3, smooth_k=3, append=True) # Overbought/Oversold
-        df.ta.atr(length=14, append=True) # True Range for Risk
+        df.ta.ema(length=9, append=True)  
+        df.ta.ema(length=21, append=True) 
+        df.ta.rsi(length=14, append=True) 
+        df.ta.macd(fast=12, slow=26, signal=9, append=True) 
+        df.ta.bbands(length=20, std=2, append=True) 
+        df.ta.stoch(k=14, d=3, smooth_k=3, append=True) 
+        df.ta.atr(length=14, append=True) 
         
-        # Clean NaN values safely using modern Pandas syntax
+        # Clean NaN values safely 
         df.bfill(inplace=True)
         
         st.session_state.live_price = float(df['Close'].iloc[-1])
@@ -128,9 +144,8 @@ with tab1:
         
         # --- THE PREDICTIVE CONSENSUS ALGORITHM ---
         score = 0
-        max_score = 6 # Total number of conditions evaluated
+        max_score = 6 
         
-        # Extract variables safely
         ema9 = latest.get('EMA_9', curr_p)
         ema21 = latest.get('EMA_21', curr_p)
         rsi = latest.get('RSI_14', 50.0)
@@ -142,13 +157,12 @@ with tab1:
         bb_lower = latest.get('BBL_20_2.0', curr_p * 0.99)
         atr = latest.get('ATRr_14', curr_p * 0.01)
 
-        # Evaluate Bullish vs Bearish Weights
         if ema9 > ema21: score += 1
         else: score -= 1
             
-        if rsi < 35: score += 1.5 # Strong oversold buy
-        elif rsi > 65: score -= 1.5 # Strong overbought sell
-        elif ema9 > ema21 and rsi > 50: score += 0.5 # Trend continuation
+        if rsi < 35: score += 1.5 
+        elif rsi > 65: score -= 1.5 
+        elif ema9 > ema21 and rsi > 50: score += 0.5 
             
         if macd > macds: score += 1
         else: score -= 1
@@ -159,18 +173,16 @@ with tab1:
         if curr_p > ema21: score += 1
         else: score -= 1
         
-        # Calculate Confidence & Forecast Logic
-        raw_confidence = abs(score) / max_score
-        confidence_pct = min(raw_confidence * 100, 99.9) # Cap at 99.9% because nothing is 100%
+        confidence_pct = min((abs(score) / max_score) * 100, 99.9)
         
         if score >= 2:
             verdict = "BULLISH (UPWARD FORECAST) 🟢"
-            proj_entry = ema9 # Buy if it pulls back to the fast moving average
-            proj_exit = bb_upper + (atr * 0.5) # Exit at the upper band + volatility push
+            proj_entry = ema9 
+            proj_exit = bb_upper + (atr * 0.5) 
             proj_sl = bb_lower - (atr * 0.5)
         elif score <= -2:
             verdict = "BEARISH (DOWNWARD FORECAST) 🔴"
-            proj_entry = ema21 # Short/Sell at the slow moving average
+            proj_entry = ema21 
             proj_exit = bb_lower - (atr * 0.5)
             proj_sl = bb_upper + (atr * 0.5)
         else:
@@ -180,7 +192,6 @@ with tab1:
             proj_sl = bb_lower
             confidence_pct = 50.0
 
-        # --- UI DISPLAY: FORECAST MATRIX ---
         st.markdown("### 🤖 Institutional Forecast Engine")
         v_col1, v_col2, v_col3 = st.columns(3)
         v_col1.metric("Predicted Direction", verdict)
@@ -189,7 +200,7 @@ with tab1:
         
         st.info(f"**Engine Recommendation:** Look for a predictive **Entry near ${proj_entry:,.2f}**. Set your primary **Exit Target at ${proj_exit:,.2f}**, with a hard statistical **Stop-Loss around ${proj_sl:,.2f}**.")
 
-        # --- DYNAMIC CHARTING ---
+        # --- DYNAMIC CHARTING (With defensive fallback checks to prevent KeyError crashes) ---
         fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03, row_heights=[0.6, 0.2, 0.2])
         time_col = df['Datetime'] if 'Datetime' in df else df['Date']
         
@@ -198,24 +209,28 @@ with tab1:
         else:
             fig.add_trace(go.Scatter(x=time_col, y=df['Close'], name="Price", line=dict(color='cyan', width=2)), row=1, col=1)
             
-        # Draw Bollinger Bands and EMAs
-        fig.add_trace(go.Scatter(x=time_col, y=df['BBU_20_2.0'], line=dict(color='gray', width=1, dash='dot'), name="Upper Band"), row=1, col=1)
-        fig.add_trace(go.Scatter(x=time_col, y=df['BBL_20_2.0'], line=dict(color='gray', width=1, dash='dot'), fill='tonexty', fillcolor='rgba(128,128,128,0.1)', name="Lower Band"), row=1, col=1)
-        fig.add_trace(go.Scatter(x=time_col, y=df['EMA_9'], line=dict(color='yellow', width=1.5), name="EMA 9"), row=1, col=1)
-        fig.add_trace(go.Scatter(x=time_col, y=df['EMA_21'], line=dict(color='fuchsia', width=1.5), name="EMA 21"), row=1, col=1)
+        bbu_series = df['BBU_20_2.0'] if 'BBU_20_2.0' in df.columns else df['Close']
+        bbl_series = df['BBL_20_2.0'] if 'BBL_20_2.0' in df.columns else df['Close']
+        ema9_series = df['EMA_9'] if 'EMA_9' in df.columns else df['Close']
+        ema21_series = df['EMA_21'] if 'EMA_21' in df.columns else df['Close']
+        rsi_series = df['RSI_14'] if 'RSI_14' in df.columns else pd.Series(50, index=df.index)
+        macd_hist = df['MACDh_12_26_9'] if 'MACDh_12_26_9' in df.columns else pd.Series(0, index=df.index)
+
+        fig.add_trace(go.Scatter(x=time_col, y=bbu_series, line=dict(color='gray', width=1, dash='dot'), name="Upper Band"), row=1, col=1)
+        fig.add_trace(go.Scatter(x=time_col, y=bbl_series, line=dict(color='gray', width=1, dash='dot'), fill='tonexty', fillcolor='rgba(128,128,128,0.1)', name="Lower Band"), row=1, col=1)
+        fig.add_trace(go.Scatter(x=time_col, y=ema9_series, line=dict(color='yellow', width=1.5), name="EMA 9"), row=1, col=1)
+        fig.add_trace(go.Scatter(x=time_col, y=ema21_series, line=dict(color='fuchsia', width=1.5), name="EMA 21"), row=1, col=1)
         
-        # Subplot 2: RSI
-        fig.add_trace(go.Scatter(x=time_col, y=df['RSI_14'], line=dict(color='orange'), name="RSI"), row=2, col=1)
+        fig.add_trace(go.Scatter(x=time_col, y=rsi_series, line=dict(color='orange'), name="RSI"), row=2, col=1)
         fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
         fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
         
-        # Subplot 3: MACD Histogram
-        fig.add_trace(go.Bar(x=time_col, y=df['MACDh_12_26_9'], marker_color='blue', name="MACD Hist"), row=3, col=1)
+        fig.add_trace(go.Bar(x=time_col, y=macd_hist, marker_color='blue', name="MACD Hist"), row=3, col=1)
 
         fig.update_layout(xaxis_rangeslider_visible=False, height=650, template="plotly_dark", margin=dict(t=10, b=10))
         st.plotly_chart(fig, use_container_width=True)
 
-        # --- ZERO-LAG MANUAL EXECUTION FORM ---
+        # --- EXECUTION FORM ---
         st.markdown("### 💼 Execute Projected Trade")
         st.write(f"**Purchasing Power:** `${st.session_state.cash:,.2f}`")
         
