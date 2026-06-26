@@ -9,7 +9,7 @@ import pytz
 import time
 
 # High-fidelity terminal workspace configuration
-st.set_page_config(page_title="QuantEdge Crypto/Forex Alpha Terminal", layout="wide")
+st.set_page_config(page_title="QuantEdge AI Crypto/FX Terminal", layout="wide")
 
 # ==========================================
 # 1. COMPREHENSIVE SESSION STATE ARCHITECTURE
@@ -20,45 +20,31 @@ if "statement" not in st.session_state: st.session_state.statement = []
 if "scan_results" not in st.session_state: st.session_state.scan_results = []
 if "last_scan_time" not in st.session_state: st.session_state.last_scan_time = None
 
-# Asset Matrix Restricted Exclusively to Forex and Crypto Markets
 ASSET_CLASSES = {
     "Crypto-Currencies (24/7)": {
-        "Bitcoin / USD": "BTC-USD",
-        "Ethereum / USD": "ETH-USD",
-        "Solana / USD": "SOL-USD",
-        "Ripple / USD": "XRP-USD",
-        "Cardano / USD": "ADA-USD"
+        "Bitcoin / USD": "BTC-USD", "Ethereum / USD": "ETH-USD",
+        "Solana / USD": "SOL-USD", "Ripple / USD": "XRP-USD", "Cardano / USD": "ADA-USD"
     },
     "Foreign Exchange (FX - IST Adjusted)": {
-        "EUR / USD": "EURUSD=X",
-        "GBP / USD": "GBPUSD=X",
-        "USD / JPY": "JPY=X",
-        "AUD / USD": "AUDUSD=X",
-        "USD / CAD": "CAD=X"
+        "EUR / USD": "EURUSD=X", "GBP / USD": "GBPUSD=X",
+        "USD / JPY": "JPY=X", "AUD / USD": "AUDUSD=X", "USD / CAD": "CAD=X"
     }
 }
 
-FLAT_ASSET_INDEX = {}
-for cat, items in ASSET_CLASSES.items():
-    for name, tick in items.items():
-        FLAT_ASSET_INDEX[f"{name} ({tick})"] = {"ticker": tick, "name": name, "category": cat}
+FLAT_ASSET_INDEX = {f"{n} ({t})": {"ticker": t, "name": n, "category": c} for c, items in ASSET_CLASSES.items() for n, t in items.items()}
 
 # ==========================================
 # 2. IST TIME CLOCK & MARKET STATUS RULES
 # ==========================================
 def get_market_status_ist(category):
     if "Crypto" in category: return True, "ONLINE (24/7)"
-    
     ist_now = datetime.now(pytz.timezone('Asia/Kolkata'))
-    weekday = ist_now.weekday()
+    weekday = ist_now.weekday() 
     hour = ist_now.hour
-    minute = ist_now.minute
     
     if weekday == 5: return False, "OFFLINE (Weekend Halt)"
     if weekday == 6:
-        if hour < 3 or (hour == 3 and minute < 30): return False, "OFFLINE (Weekend Halt)"
-    if weekday == 4:
-        if hour > 3 or (hour == 3 and minute >= 30): pass
+        if hour < 3 or (hour == 3 and ist_now.minute < 30): return False, "OFFLINE (Weekend Halt)"
     return True, "ONLINE"
 
 # ==========================================
@@ -66,18 +52,7 @@ def get_market_status_ist(category):
 # ==========================================
 st.sidebar.header("🕹️ Quantitative Controls")
 
-st.sidebar.subheader("💰 Portfolio Capital Controller")
-st.sidebar.metric("Available Liquidity Pool", f"${st.session_state.cash:,.2f}")
-
-with st.sidebar.expander("💳 Capital Injection Vault (Add Money)"):
-    inject_amt = st.number_input("Amount to Add ($)", min_value=100.0, value=10000.0, step=500.0)
-    if st.button("Route Capital Injection", use_container_width=True):
-        st.session_state.cash += inject_amt
-        st.toast(f"Successfully injected ${inject_amt:,.2f} into liquid reserves!", icon="💰")
-        time.sleep(0.4); st.rerun()
-
-st.sidebar.divider()
-st.sidebar.subheader("🔍 Crypto & FX Omni Search")
+st.sidebar.subheader("🔍 Omni-Asset Search")
 search_query = st.sidebar.text_input("Filter symbols...", "").lower()
 filtered_options = [k for k in FLAT_ASSET_INDEX.keys() if search_query in k.lower()]
 if not filtered_options: filtered_options = list(FLAT_ASSET_INDEX.keys())
@@ -103,7 +78,7 @@ current_horizon = TIMEFRAME_CONFIG[timeframe]["horizon"]
 hold_limit = TIMEFRAME_CONFIG[timeframe]["hold"]
 
 # ==========================================
-# 4. INSTITUTIONAL MATHEMATICS & FFT ENGINE
+# 4. UPGRADED MATHEMATICS & FFT ENGINE
 # ==========================================
 def clean_and_verify_dataframe(df):
     if isinstance(df.columns, pd.MultiIndex): df.columns = [c[0] for c in df.columns]
@@ -118,7 +93,6 @@ def clean_and_verify_dataframe(df):
 def calculate_analytics_matrix(df):
     df['EMA_9'] = df['Close'].ewm(span=9, adjust=False).mean()
     df['EMA_21'] = df['Close'].ewm(span=21, adjust=False).mean()
-    df['SMA_50'] = df['Close'].rolling(window=50).mean()
     df['VWAP'] = ((df['High'] + df['Low'] + df['Close']) / 3 * (df['Volume'] + 1)).cumsum() / (df['Volume'] + 1).cumsum()
     
     delta = df['Close'].diff()
@@ -129,85 +103,91 @@ def calculate_analytics_matrix(df):
     df['MACD'] = ema12 - ema26
     df['MACD_Signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
     
+    # Volatility Squeeze Math (Bollinger vs Keltner)
     sma20 = df['Close'].rolling(20).mean()
     std20 = df['Close'].rolling(20).std()
-    df['BB_Upper'] = sma20 + (std20 * 2.2)
-    df['BB_Lower'] = sma20 - (std20 * 2.2)
+    df['BB_Upper'] = sma20 + (std20 * 2.0)
+    df['BB_Lower'] = sma20 - (std20 * 2.0)
     
     hl, hc, lc = df['High'] - df['Low'], (df['High'] - df['Close'].shift(1)).abs(), (df['Low'] - df['Close'].shift(1)).abs()
     df['ATR'] = pd.concat([hl, hc, lc], axis=1).max(axis=1).rolling(14).mean()
+    
+    # Keltner Channels for Squeeze detection
+    df['KC_Upper'] = df['EMA_21'] + (df['ATR'] * 1.5)
+    df['KC_Lower'] = df['EMA_21'] - (df['ATR'] * 1.5)
+    df['Squeeze_Active'] = (df['BB_Upper'] < df['KC_Upper']) & (df['BB_Lower'] > df['KC_Lower'])
+    
     df.bfill(inplace=True)
     return df
 
-def fourier_extrapolation(df, interval_str, days_lookahead=365):
-    """
-    Advanced FFT (Fast Fourier Transform) Extrapolation.
-    Extracts underlying sine/cosine cyclical frequencies from chaotic price action 
-    to map out highly dynamic, non-linear forward predictive curves.
-    """
-    if "m" in interval_str:
-        step = timedelta(minutes=int(interval_str.replace("m", "")))
-        total_steps = min(days_lookahead * 2, 150)
-    elif "h" in interval_str:
-        step = timedelta(hours=1)
-        total_steps = min(days_lookahead * 4, 250)
-    else:
-        step = timedelta(days=1)
-        total_steps = days_lookahead
-
-    x = df['Close'].values
-    n = x.size
-    
-    # Calculate underlying linear trend
-    t = np.arange(0, n)
-    p = np.polyfit(t, x, 1) 
-    x_notrend = x - (p[0] * t + p[1])
-    
-    # Decompose into Frequency Domain (FFT)
-    x_freqdom = np.fft.fft(x_notrend)
-    f = np.fft.fftfreq(n)
-    
-    # Sort harmonics by amplitude dominance
-    indexes = list(range(n))
-    indexes.sort(key=lambda i: np.absolute(x_freqdom[i]), reverse=True)
-    
-    t_ext = np.arange(0, n + total_steps)
-    restored_sig = np.zeros(t_ext.size)
-    
-    # Rebuild the signal using the top 15 cyclical harmonics
-    n_harm = min(15, n // 2)
-    for i in indexes[:1 + n_harm * 2]:
-        ampli = np.absolute(x_freqdom[i]) / n
-        phase = np.angle(x_freqdom[i])
-        restored_sig += ampli * np.cos(2 * np.pi * f[i] * t_ext + phase)
+def generate_cyclical_harmonic_forecast(ticker_symbol, df_current, days_lookahead=365):
+    """Upgraded FFT with ATR Damping to prevent unrealistic price spikes."""
+    try:
+        macro_raw = yf.download(ticker_symbol, period="2y", interval="1d", progress=False)
+        macro_df = clean_and_verify_dataframe(macro_raw) if not macro_raw.empty else df_current.copy()
+    except: macro_df = df_current.copy()
         
-    # Reattach the trend to the cyclical waves
-    forecast_curve = restored_sig + (p[0] * t_ext + p[1])
-    f_preds = forecast_curve[n:] # Only return the future data points
+    prices = macro_df['Close'].values
+    n = len(prices)
+    t = np.arange(0, n)
+    slope, intercept = np.polyfit(t, prices, 1)
+    detrended = prices - (slope * t + intercept)
     
-    last_date = df['Timestamp'].iloc[-1]
+    fft_vals = np.fft.fft(detrended)
+    frequencies = np.fft.fftfreq(n)
+    idx = np.argsort(np.absolute(fft_vals))[::-1]
+    
+    future_steps = int(days_lookahead)
+    t_ext = np.arange(0, n + future_steps)
+    harmonic_wave = np.zeros(t_ext.size)
+    
+    for i in idx[:12]: # Reduced to top 12 harmonics for smoother curves
+        amplitude = np.absolute(fft_vals[i]) / n
+        phase = np.angle(fft_vals[i])
+        harmonic_wave += amplitude * np.cos(2 * np.pi * frequencies[i] * t_ext + phase)
+        
+    full_prediction = harmonic_wave + (slope * t_ext + intercept)
+    future_predictions = full_prediction[n:]
+    
+    # ATR Dampener: Restricts forecast drift to realistic statistical limits
+    last_price = float(df_current['Close'].iloc[-1])
+    current_atr = float(df_current['ATR'].iloc[-1])
+    max_variance = current_atr * days_lookahead * 0.15 # Dynamic cap based on actual volatility
+    
+    future_predictions = np.clip(future_predictions, last_price - max_variance, last_price + max_variance)
+    
+    last_date = df_current['Timestamp'].iloc[-1]
     if isinstance(last_date, str): last_date = pd.to_datetime(last_date)
-    f_dates = [last_date + (step * i) for i in range(1, total_steps + 1)]
+    time_step = timedelta(days=1) if days_lookahead > 30 else timedelta(hours=12)
+    future_dates = [last_date + (time_step * i) for i in range(1, future_steps + 1)]
     
-    return f_dates, f_preds
+    return future_dates, future_predictions
 
 def evaluate_signal_confidence(latest):
+    """Upgraded strict scoring logic."""
     score = 0.0
     factors = []
     
-    if latest['EMA_9'] > latest['EMA_21']: score += 2.0; factors.append("Bullish EMA Crossover Detected")
-    else: score -= 2.0; factors.append("Bearish EMA Crossover Detected")
+    if latest['EMA_9'] > latest['EMA_21']: score += 2.0; factors.append("📈 Bullish EMA Structural Crossover")
+    else: score -= 2.0; factors.append("📉 Bearish EMA Structural Crossover")
         
-    if latest['Close'] > latest['VWAP']: score += 1.5; factors.append("Volume Matrix Expansion (Above VWAP)")
-    else: score -= 1.5; factors.append("Volume Matrix Contraction (Below VWAP)")
+    # VWAP Penalty logic
+    dist_to_vwap = abs(latest['Close'] - latest['VWAP']) / latest['VWAP']
+    if dist_to_vwap > 0.05: score -= 1.0; factors.append("⚠️ Overextended from VWAP Anchor (Reversion Risk)")
+    elif latest['Close'] > latest['VWAP']: score += 1.5; factors.append("📊 Volume Profile Accumulation (Above VWAP)")
+    else: score -= 1.5; factors.append("📊 Volume Profile Liquidation (Below VWAP)")
         
-    if latest['RSI_14'] < 35: score += 2.0; factors.append("Oversold Multi-Hour Exhaustion (Reversal Imminent)")
-    elif latest['RSI_14'] > 65: score -= 2.0; factors.append("Overbought Multi-Hour Exhaustion (Reversal Imminent)")
+    if latest['RSI_14'] < 35: score += 2.5; factors.append("⚡ Highly Oversold Multi-Hour Exhaustion")
+    elif latest['RSI_14'] > 65: score -= 2.5; factors.append("⚡ Highly Overbought Multi-Hour Exhaustion")
         
-    if latest['MACD'] > latest['MACD_Signal']: score += 1.5; factors.append("Positive MACD Velocity Accentuation")
-    else: score -= 1.5; factors.append("Negative MACD Velocity Accentuation")
+    if latest['MACD'] > latest['MACD_Signal']: score += 1.5; factors.append("🚀 Positive MACD Velocity Accentuation")
+    else: score -= 1.5; factors.append("🩸 Negative MACD Velocity Accentuation")
+        
+    if latest['Squeeze_Active']:
+        factors.append("🔥 VOLATILITY SQUEEZE DETECTED: Explosive Breakout Imminent")
+        score *= 1.2 # Amplify score if coiling
 
-    confidence = min((abs(score) / 7.0) * 100, 99.8)
+    confidence = min((abs(score) / 7.5) * 100, 99.8)
     if confidence < 50.0: confidence = 50.0 + (confidence / 5)
     return score, confidence, factors
 
@@ -218,7 +198,6 @@ now_ts = datetime.now()
 purged = False
 for t_id, data in list(st.session_state.portfolio.items()):
     exp_time = datetime.strptime(data['expiration'], "%Y-%m-%d %H:%M:%S")
-    
     try:
         t_df = clean_and_verify_dataframe(yf.download(t_id, period="1d", interval="1m", progress=False))
         live_p = float(t_df['Close'].iloc[-1])
@@ -253,14 +232,13 @@ chosen_per = TIMEFRAME_CONFIG[timeframe]["period"]
 is_open, clock_msg = get_market_status_ist(asset_cat)
 
 if st.session_state.get("current_market_data") is None or st.session_state.get("last_analyzed_ticker") != ticker:
-    if is_open:
-        with st.spinner("Synchronizing algorithmic asset parameters..."):
-            raw_data = yf.download(ticker, period=chosen_per, interval=chosen_int, progress=False)
-            if not raw_data.empty:
-                df_clean = clean_and_verify_dataframe(raw_data)
-                st.session_state.current_market_data = calculate_analytics_matrix(df_clean)
-                st.session_state.live_price = float(st.session_state.current_market_data['Close'].iloc[-1])
-                st.session_state.last_analyzed_ticker = ticker
+    with st.spinner("Synchronizing algorithmic asset parameters..."):
+        raw_data = yf.download(ticker, period=chosen_per, interval=chosen_int, progress=False)
+        if not raw_data.empty:
+            df_clean = clean_and_verify_dataframe(raw_data)
+            st.session_state.current_market_data = calculate_analytics_matrix(df_clean)
+            st.session_state.live_price = float(st.session_state.current_market_data['Close'].iloc[-1])
+            st.session_state.last_analyzed_ticker = ticker
 
 # ==========================================
 # 7. USER INTERFACE TAB CONSOLE
@@ -268,16 +246,19 @@ if st.session_state.get("current_market_data") is None or st.session_state.get("
 tab1, tab2, tab3, tab4 = st.tabs([
     "🔮 Single-Asset Predictor", 
     "🤖 Institutional 60%+ Scanner", 
-    "💼 Portfolio Ledger", 
-    "📖 Operations Control Guide"
+    "💼 Portfolio Ledger (Add Money)", 
+    "📖 Operations Guide"
 ])
 
+# ------------------------------------------
+# TAB 1: SINGLE-ASSET PREDICTOR
+# ------------------------------------------
 with tab1:
     st.title(f"🔮 Predictive Analysis Matrix: {asset_name}")
     st.markdown(f"Segment: **{asset_cat}** | Operational Status (IST Clock): **{clock_msg}**")
     
     if not is_open:
-        st.error("Market Segment is currently offline under interbank weekend trading regulations.")
+        st.warning("Market Segment is currently offline under weekend trading regulations. Analytics available but execution disabled.")
         
     if st.session_state.current_market_data is not None and st.session_state.last_analyzed_ticker == ticker:
         df = st.session_state.current_market_data
@@ -297,21 +278,24 @@ with tab1:
         col3.metric("System Recommendation", verdict)
         col4.metric("Mathematical Confidence", f"{confidence:.2f}%")
         
-        st.markdown("### 📊 Fast Fourier Transform (FFT) Projection")
-        forecast_selection = st.selectbox("Select Cyclical Lookahead Window", ["1 Month Forward", "3 Months Forward", "6 Months Forward", "1 Year Advanced Loop"])
-        days_map = {"1 Month Forward": 30, "3 Months Forward": 90, "6 Months Forward": 180, "1 Year Advanced Loop": 365}
+        st.markdown("### 📋 Automated Alpha Audit Ledger (Reasons for Trade)")
+        for factor in factors:
+            st.markdown(f"- {factor}")
+            
+        st.markdown("### 📊 Advanced Damped Harmonic Forecast Curve")
+        forecast_selection = st.selectbox("Select Cyclical Lookahead Window", ["1 Month Cyclical Horizon", "3 Months Cyclical Horizon", "6 Months Cyclical Horizon", "1 Year Macro Advanced Loop"])
+        days_map = {"1 Month Cyclical Horizon": 30, "3 Months Cyclical Horizon": 90, "6 Months Cyclical Horizon": 180, "1 Year Macro Advanced Loop": 365}
         
-        f_dates, f_preds = fourier_extrapolation(df, chosen_int, days_lookahead=days_map[forecast_selection])
+        f_dates, f_preds = generate_cyclical_harmonic_forecast(ticker, df, days_lookahead=days_map[forecast_selection])
         
         fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.04, row_heights=[0.7, 0.3])
         fig.add_trace(go.Candlestick(x=df['Timestamp'], open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="Candle Structure"), row=1, col=1)
         fig.add_trace(go.Scatter(x=df['Timestamp'], y=df['EMA_9'], line=dict(color='yellow', width=1), name="EMA 9"), row=1, col=1)
-        fig.add_trace(go.Scatter(x=df['Timestamp'], y=df['VWAP'], line=dict(color='cyan', width=1), name="VWAP"), row=1, col=1)
+        fig.add_trace(go.Scatter(x=df['Timestamp'], y=df['VWAP'], line=dict(color='cyan', width=1), name="VWAP Anchor"), row=1, col=1)
         
-        # Inject FFT Extrapolation Curve
-        fig.add_trace(go.Scatter(x=f_dates, y=f_preds, line=dict(color='#00ffcc', width=2, dash='dot'), name=f"FFT Predictive Vector"), row=1, col=1)
+        fig.add_trace(go.Scatter(x=f_dates, y=f_preds, line=dict(color='#00ffcc', width=2, dash='dot'), name="Harmonic Cyclical Projection"), row=1, col=1)
         
-        fig.add_trace(go.Scatter(x=df['Timestamp'], y=df['RSI_14'], line=dict(color='orange', width=1.2), name="RSI Engine"), row=2, col=1)
+        fig.add_trace(go.Scatter(x=df['Timestamp'], y=df['RSI_14'], line=dict(color='orange', width=1.2), name="RSI Tracker"), row=2, col=1)
         fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
         fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
         
@@ -326,15 +310,15 @@ with tab1:
             sl_price = ec3.number_input("Custom Stop Loss Minimum Floor (SL)", value=float(target_sl))
             
             b_buy, b_sell = st.columns(2)
-            buy_triggered = b_buy.form_submit_button("ROUTE LONG ACQUISITION SCHEME", use_container_width=True)
-            sell_triggered = b_sell.form_submit_button("ROUTE SHORT LIQUIDATION EXPOSURE", use_container_width=True)
+            buy_triggered = b_buy.form_submit_button("ROUTE LONG ACQUISITION SCHEME", use_container_width=True, disabled=not is_open)
+            sell_triggered = b_sell.form_submit_button("ROUTE SHORT LIQUIDATION EXPOSURE", use_container_width=True, disabled=not is_open)
             
             if (buy_triggered or sell_triggered) and is_open:
                 direction = "LONG" if buy_triggered else "SHORT"
                 total_capital_lock = trade_units * curr_p
                 
                 if direction == "LONG" and total_capital_lock > st.session_state.cash:
-                    st.error("Order Blocked: Insufficient capital.")
+                    st.error("Order Blocked: Margin deficit.")
                 else:
                     if direction == "LONG": st.session_state.cash -= total_capital_lock
                     else: st.session_state.cash += total_capital_lock
@@ -347,6 +331,9 @@ with tab1:
                     st.toast(f"Logged Active {direction} Setup. Expiration Window: {hold_limit}", icon="✅")
                     time.sleep(0.4); st.rerun()
 
+# ------------------------------------------
+# TAB 2: INSTITUTIONAL 60%+ SCANNER
+# ------------------------------------------
 with tab2:
     st.title("🤖 High-Confidence Cross-Market Auto-Scanner")
     st.caption("Filters anomalies globally. Only signals mapping **>60.0% Confidence** are displayed.")
@@ -354,7 +341,7 @@ with tab2:
     scan_col1, scan_col2 = st.columns([1, 4])
     selected_scan_type = scan_col1.radio("Strategy Target Class", ["Intraday Matrix Setups", "Interday Swing Matrix"])
     
-    if scan_col2.button("🚀 INITIATE 60%+ WALL STREET LOOP", use_container_width=True):
+    if scan_col2.button("🚀 INITIATE 60%+ WALL STREET AUTOMATED LOOP", use_container_width=True):
         scanned_setups = []
         target_key = "Intraday (15 Min Frame)" if "Intraday" in selected_scan_type else "Interday (1 Day Frame)"
         cfg = TIMEFRAME_CONFIG[target_key]
@@ -364,27 +351,26 @@ with tab2:
                 try:
                     s_tick, s_name, s_cat = data_meta["ticker"], data_meta["name"], data_meta["category"]
                     m_status, _ = get_market_status_ist(s_cat)
-                    if not m_status: continue
                         
                     s_raw = yf.download(s_tick, period=cfg["period"], interval=cfg["int"], progress=False)
                     if not s_raw.empty and len(s_raw) > 15:
                         s_df = calculate_analytics_matrix(clean_and_verify_dataframe(s_raw))
                         s_latest = s_df.iloc[-1]
                         
-                        s_score, s_confidence, _ = evaluate_signal_confidence(s_latest)
+                        s_score, s_confidence, s_factors = evaluate_signal_confidence(s_latest)
                         
                         if s_confidence >= 60.0:
                             s_dir = "LONG 🟢" if s_score > 0 else "SHORT 🔴"
                             s_price = float(s_latest['Close'])
                             s_atr = s_latest['ATR']
-                            
                             s_tp = s_price + (s_atr * 2.2) if s_score > 0 else s_price - (s_atr * 2.2)
                             s_sl = s_price - (s_atr * 1.5) if s_score > 0 else s_price + (s_atr * 1.5)
                             
                             scanned_setups.append({
                                 "Asset": s_name, "Ticker": s_tick, "Category": s_cat, "Direction": s_dir,
                                 "Confidence": s_confidence, "Price": s_price, "TP": s_tp, "SL": s_sl,
-                                "Horizon": cfg["horizon"], "HoldLimit": cfg["hold"]
+                                "Horizon": cfg["horizon"], "HoldLimit": cfg["hold"], "MarketOpen": m_status,
+                                "Factors": s_factors
                             })
                 except Exception as e: pass
             
@@ -396,32 +382,53 @@ with tab2:
         for idx, trade in enumerate(st.session_state.scan_results):
             with st.container(border=True):
                 c1, c2, c3, c4, c5, c6 = st.columns([2, 1, 1.5, 2, 2, 2])
-                c1.markdown(f"**{trade.get('Asset', 'Unknown')} ({trade.get('Ticker', 'Unknown')})**\n*{trade.get('Category', 'Unknown')}*")
-                c2.markdown(f"**{trade.get('Direction', 'N/A')}**")
-                c3.metric("System Confidence", f"{trade.get('Confidence', 0):.1f}%")
-                c4.markdown(f"Spot: **${trade.get('Price', 0):.4f}**\nHorizon: `{trade.get('Horizon', 'Unknown')}`")
-                c5.markdown(f"Target TP: **${trade.get('TP', 0):.4f}**\nFloor SL: **${trade.get('SL', 0):.4f}**")
+                c1.markdown(f"**{trade.get('Asset')} ({trade.get('Ticker')})**\n*{trade.get('Category')}*")
+                c2.markdown(f"**{trade.get('Direction')}**")
+                c3.metric("Confidence", f"{trade.get('Confidence'):.1f}%")
+                c4.markdown(f"Spot: **${trade.get('Price'):.4f}**\nHorizon: `{trade.get('Horizon')}`")
+                c5.markdown(f"Target TP: **${trade.get('TP'):.4f}**\nFloor SL: **${trade.get('SL'):.4f}**")
                 
-                if c6.button("⚡ EXECUTE POSITION NOW", key=f"btn_{idx}_{trade.get('Ticker', idx)}", use_container_width=True):
-                    t_cost = 10.0 * trade.get('Price', 0)
-                    if t_cost > st.session_state.cash: st.error("Insufficient Margin.")
-                    else:
-                        st.session_state.cash -= t_cost
-                        st.session_state.portfolio[trade['Ticker']] = {
-                            "asset_name": trade['Asset'], "qty": 10.0 if "LONG" in trade['Direction'] else -10.0,
-                            "entry": trade['Price'], "tp": trade['TP'], "sl": trade['SL'], "horizon": trade['Horizon'],
-                            "direction": "LONG" if "LONG" in trade['Direction'] else "SHORT",
-                            "expiration": (datetime.now() + trade['HoldLimit']).strftime("%Y-%m-%d %H:%M:%S")
-                        }
-                        st.toast(f"Routed Order for {trade['Ticker']}!", icon="🚀")
-                        time.sleep(0.3); st.rerun()
+                if trade.get('MarketOpen'):
+                    if c6.button("⚡ EXECUTE POSITION", key=f"sbtn_{idx}_{trade.get('Ticker')}", use_container_width=True):
+                        t_cost = 10.0 * trade.get('Price')
+                        if t_cost > st.session_state.cash: st.error("Insufficient Margin.")
+                        else:
+                            st.session_state.cash -= t_cost
+                            st.session_state.portfolio[trade['Ticker']] = {
+                                "asset_name": trade['Asset'], "qty": 10.0 if "LONG" in trade['Direction'] else -10.0,
+                                "entry": trade['Price'], "tp": trade['TP'], "sl": trade['SL'], "horizon": trade['Horizon'],
+                                "direction": "LONG" if "LONG" in trade['Direction'] else "SHORT",
+                                "expiration": (datetime.now() + trade['HoldLimit']).strftime("%Y-%m-%d %H:%M:%S")
+                            }
+                            st.toast(f"Routed Order for {trade['Ticker']}!", icon="🚀")
+                            time.sleep(0.3); st.rerun()
+                else:
+                    c6.markdown("🛑 **Market Closed (Weekend Halt)**")
+                    
+                with st.expander("👁️ View Search & Trade Logic Rationale"):
+                    for r in trade.get('Factors', []): st.markdown(f"- {r}")
     else:
-        st.info("Scanner idle. Awaiting user initiation.")
+        st.info("Scanner idle. Awaiting compilation loops.")
 
+# ------------------------------------------
+# TAB 3: PORTFOLIO LEDGER (ADD MONEY MODULE)
+# ------------------------------------------
 with tab3:
     st.title("💼 Institutional Portfolio Ledger")
-    st.metric("Total Vault Liquid Balance", f"${st.session_state.cash:,.2f}")
     
+    # Capital Injection Vault embedded seamlessly in the Portfolio tab
+    bal_col, add_col = st.columns([2, 1])
+    bal_col.metric("Total Vault Liquid Balance", f"${st.session_state.cash:,.2f}")
+    
+    with add_col.expander("💳 Inject Capital / Add Money", expanded=False):
+        inject_amt_portfolio = st.number_input("Amount to Inject ($)", min_value=100.0, value=5000.0, step=1000.0, key="inject_port")
+        if st.button("Confirm Capital Deposit", use_container_width=True):
+            st.session_state.cash += inject_amt_portfolio
+            st.toast(f"Successfully Deposited: ${inject_amt_portfolio:,.2f}", icon="✅")
+            time.sleep(0.4)
+            st.rerun()
+    
+    st.divider()
     l_t1, l_t2 = st.tabs(["⏱️ Intraday Modules", "📅 Interday Structures"])
     
     def display_isolated_ledger(target_string):
@@ -441,18 +448,19 @@ with tab3:
                 del st.session_state.portfolio[liq_sel]
                 st.toast("Manual override cleared.", icon="💥")
                 time.sleep(0.3); st.rerun()
-        else: st.info(f"No active automated capital deployment configurations active in the {target_string} matrix.")
+        else: st.info(f"No active automated positions inside the {target_string} matrix.")
 
     with l_t1: display_isolated_ledger("Intraday")
     with l_t2: display_isolated_ledger("Interday")
-    
-    if st.session_state.statement:
-        st.subheader("📋 Closed Order Archive")
-        st.dataframe(pd.DataFrame(st.session_state.statement).iloc[::-1], use_container_width=True)
 
+# ------------------------------------------
+# TAB 4: OPERATIONS CONTROL GUIDE
+# ------------------------------------------
 with tab4:
     st.title("📖 Quantitative Operations Blueprint")
     st.markdown("""
-    ### ⚙️ Fourier Extrapolation System 
-    Linear trend forecasting often fails due to chaotic market noise. This engine has been retrofitted with a **Fast Fourier Transform (FFT)** filter. It isolates historical sinusoidal waves, identifies structural harmonics, and generates a dynamic, non-linear projection curve that captures market cyclicality accurately across time.
+    ### ⚙️ Engine Upgrades & Mathematical Logic
+    1. **Harmonic Damping (Accuracy Fix):** Pure FFT predictions can swing wildly based on a single historical spike. This engine applies an **ATR Dampener**, which strictly bounds the prediction curve within the asset's true statistical historical variance. This ensures smooth, realistic pricing logic.
+    2. **Squeeze Detection (The Coiled Spring):** The math engine measures Bollinger Bands against Keltner Channels. When bands pinch tightly (volatility squeeze), it detects an imminent market breakout, boosting the confidence level. 
+    3. **VWAP Penalties:** The confidence engine will actively deduct points if the algorithm triggers a buy/sell signal that is too far decoupled from the Volume Weighted Average Price (VWAP), preventing you from getting trapped in "fake-out" moves.
     """)
