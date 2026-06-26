@@ -122,12 +122,14 @@ with tab1:
 
     # Render Active Market Data
     if str.session_state.engine_executed and str.session_state.current_market_data is not None:
-        df = str.session_state.current_market_data
+     df = str.session_state.current_market_data
         latest = df.iloc[-1]
         current_p = float(latest['Close'])
-        support_p = float(latest['Support'])
-        resistance_p = float(latest['Resistance'])
-        atr_p = float(latest['ATR'])
+        
+        # Safe-read implementation to prevent KeyError on hot-reloads or data drops
+        support_p = float(latest.get('Support', current_p))
+        resistance_p = float(latest.get('Resistance', current_p))
+        atr_p = float(latest.get('ATR', 0.0))
         
         # Verdict Logic
         buy_votes, sell_votes = 0, 0
